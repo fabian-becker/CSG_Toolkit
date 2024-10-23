@@ -5,18 +5,12 @@
 
 [node name="DemoWorld" type="Node3D"]
 
-[node name="CSGRepeater3D" type="CSGCombiner3D" parent="."]
-script = ExtResource("2_fsnkg")
-template_node_path = NodePath("CSGBox3D")
-repeat = Vector3(1, 2, 1)
-spacing = Vector3(0, 2, 0)
-
-[node name="CSGBox3D" type="CSGBox3D" parent="CSGRepeater3D"]
-
-[node name="@CSGBox3D@70167" type="CSGBox3D" parent="CSGRepeater3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
-metadata/REPEATED_NODE_META = true
-
 [node name="CSGSpreader3D" type="CSGCombiner3D" parent="."]
 script = ExtResource("1_oripl")
 template_node_path = NodePath("../CSGRepeater3D")
+
+[node name="CSGRepeater3D" type="CSGCombiner3D" parent="."]
+script = ExtResource("2_fsnkg")
+template_node_path = NodePath("CSGBox3D")
+
+[node name="CSGBox3D" type="CSGBox3D" parent="CSGRepeater3D"]

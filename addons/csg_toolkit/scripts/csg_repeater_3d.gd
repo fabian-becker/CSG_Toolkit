@@ -10,6 +10,13 @@ var _template_node_path: NodePath
 		_template_node_path = value
 		repeat_template()
 
+var _template_node_scene: PackedScene
+@export var template_node_scene: PackedScene:
+	get: return _template_node_scene
+	set(value):
+		_template_node_scene = value
+		repeat_template()
+
 var _repeat: Vector3 = Vector3.ONE
 @export var repeat := Vector3.ONE:
 	get:
@@ -26,7 +33,7 @@ var _spacing: Vector3 = Vector3.ZERO
 		_spacing = value
 		repeat_template()
 
-func _ready() -> void:
+func _ready():
 	repeat_template()
 
 func _exit_tree():
@@ -42,8 +49,10 @@ func repeat_template():
 	clear_children()
 
 	var template_node = get_node_or_null(template_node_path)
-	if not template_node:
+	if not template_node and (not template_node_scene or not template_node_scene.can_instantiate()):
 		return
+	if not template_node:
+		template_node = template_node_scene.instantiate()
 	
 	# Clone and position the template node based on repeat and spacing
 	for x in range(int(_repeat.x)):
@@ -62,9 +71,15 @@ func repeat_template():
 				instance.transform.origin = position
 				# Add the instance to the combiner
 				add_child(instance)
+	if template_node_scene:
+		template_node.queue_free()
 
 func apply_template():
-	print("apply repeat")
-	for child in get_children():
-		if child.has_meta(REPEATER_NODE_META):
-			child.owner = owner
+	if get_child_count() == 0:
+		return
+	var stack = []
+	stack.append_array(get_children())
+	while stack.size() > 0:
+		var node = stack.pop_back()
+		node.set_owner(owner)
+		stack.append_array(node.get_children())

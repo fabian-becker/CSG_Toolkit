@@ -10,6 +10,13 @@ var _template_node_path: NodePath
 		_template_node_path = value
 		spread_template()
 
+var _template_node_scene: PackedScene
+@export var template_node_scene: PackedScene:
+	get: return _template_node_scene
+	set(value):
+		_template_node_scene = value
+		spread_template()
+
 var _max_count: int = 10
 @export var max_count: int = 10:
 	get: return _max_count
@@ -60,8 +67,10 @@ func spread_template():
 	clear_children()
 
 	var template_node = get_node_or_null(template_node_path)
-	if not template_node:
+	if not template_node and (not template_node_scene or not template_node_scene.can_instantiate()):
 		return
+	if not template_node:
+		template_node = template_node_scene.instantiate()
 
 	var rng = RandomNumberGenerator.new()
 	if seed == 0:
@@ -86,8 +95,16 @@ func spread_template():
 			if allow_rotation:
 				instance.transform.basis = Basis().rotated(Vector3(0, 1, 0), rng.randf_range(0, 2 * PI))
 			add_child(instance)
+	# Free template node scene
+	if template_node_scene:
+		template_node.queue_free()
 
 func apply_template():
-	for child in get_children():
-		if child.has_meta(SPREADER_NODE_META):
-			child.owner = owner
+	if get_child_count() == 0:
+		return
+	var stack = []
+	stack.append_array(get_children())
+	while stack.size() > 0:
+		var node = stack.pop_back()
+		node.set_owner(owner)
+		stack.append_array(node.get_children())
