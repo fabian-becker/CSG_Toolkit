@@ -1,16 +1,12 @@
-[gd_scene load_steps=3 format=3 uid="uid://bltlelosbn4ky"]
+[gd_scene load_steps=2 format=3 uid="uid://bltlelosbn4ky"]
 
 [ext_resource type="Script" path="res://addons/csg_toolkit/scripts/csg_spreader_3d.gd" id="1_oripl"]
-[ext_resource type="Script" path="res://addons/csg_toolkit/scripts/csg_repeater_3d.gd" id="2_fsnkg"]
 
 [node name="DemoWorld" type="Node3D"]
 
 [node name="CSGSpreader3D" type="CSGCombiner3D" parent="."]
 script = ExtResource("1_oripl")
-template_node_path = NodePath("../CSGRepeater3D")
+allow_scale = null
+snap_distance = null
 
-[node name="CSGRepeater3D" type="CSGCombiner3D" parent="."]
-script = ExtResource("2_fsnkg")
-template_node_path = NodePath("CSGBox3D")
-
-[node name="CSGBox3D" type="CSGBox3D" parent="CSGRepeater3D"]
+[node name="CSGBox3D" type="CSGBox3D" parent="CSGSpreader3D"]
