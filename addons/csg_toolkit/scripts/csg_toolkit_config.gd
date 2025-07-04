@@ -35,7 +35,6 @@ func load_config():
 		auto_hide = config.get_value(CSG_TOOLKIT, AUTO_HIDE, auto_hide)
 	else:
 		save_config()
-	print("CsgToolkit: Loaded Config")
 	
 
 enum CSGBehavior { SIBLING, CHILD }

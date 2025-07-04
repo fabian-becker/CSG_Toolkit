@@ -25,10 +25,3 @@ func _on_refresh_pressed():
 		selection[0].call("repeat_template")
 	elif selection[0] is CSGSpreader3D:
 		selection[0].call("spread_template")
-
-func _on_apply_pressed():
-	var selection = EditorInterface.get_selection().get_selected_nodes()
-	if (selection.is_empty()):
-		return
-	if selection[0] is CSGRepeater3D or selection[0] is CSGSpreader3D:
-			selection[0].call("apply_template")

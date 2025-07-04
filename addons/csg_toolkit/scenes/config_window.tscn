@@ -1,6 +1,6 @@
 [gd_scene load_steps=4 format=3 uid="uid://dts41g6camqwq"]
 
-[ext_resource type="Script" path="res://addons/csg_toolkit/scripts/config_window.gd" id="1_pigko"]
+[ext_resource type="Script" uid="uid://b7isqiq2asnu6" path="res://addons/csg_toolkit/scripts/config_window.gd" id="1_pigko"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ng5lh"]
 

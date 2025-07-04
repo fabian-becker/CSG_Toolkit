@@ -1,6 +1,6 @@
 [gd_scene load_steps=15 format=3 uid="uid://cdjxmp0p1bbup"]
 
-[ext_resource type="Script" path="res://addons/csg_toolkit/scripts/csg_side_toolkit_bar.gd" id="1_awo4p"]
+[ext_resource type="Script" uid="uid://dr5f1egll7hdq" path="res://addons/csg_toolkit/scripts/csg_side_toolkit_bar.gd" id="1_awo4p"]
 [ext_resource type="Texture2D" uid="uid://cjxx30pcamj36" path="res://addons/csg_toolkit/res/icons/box.svg" id="2_p4f7r"]
 [ext_resource type="Texture2D" uid="uid://dioxt3oaqvsi3" path="res://addons/csg_toolkit/res/icons/cyliner.svg" id="3_j7s68"]
 [ext_resource type="Texture2D" uid="uid://bnpu878eanspj" path="res://addons/csg_toolkit/res/icons/mesh.svg" id="4_328ee"]
