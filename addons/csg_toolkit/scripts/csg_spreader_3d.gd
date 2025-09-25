@@ -2,8 +2,10 @@
 class_name CSGSpreader3D extends CSGCombiner3D
 
 const SPREADER_NODE_META = "SPREADER_NODE_META"
+const MAX_INSTANCES = 20000
 
 var _dirty: bool = false
+var _generation_in_progress := false
 var _template_node_path: NodePath
 @export var template_node_path: NodePath:
 	get: return _template_node_path
@@ -22,8 +24,7 @@ var _max_count: int = 10
 @export var max_count: int = 10:
 	get: return _max_count
 	set(value):
-		# Clamp to reasonable limits to prevent performance issues
-		_max_count = clamp(value, 1, 1000)
+		_max_count = clamp(value, 1, 100000)
 		_mark_dirty()
 
 @export_group("Spread Options")
@@ -84,6 +85,8 @@ var _max_placement_attempts: int = 100
 		_max_placement_attempts = clamp(value, 10, 1000)
 		_mark_dirty()
 
+@export var estimated_instances: int = 0
+
 var rng: RandomNumberGenerator
 
 func _ready():
@@ -92,205 +95,165 @@ func _ready():
 
 func _process(_delta):
 	if not Engine.is_editor_hint(): return
-	
-	# Only process if in editor mode
-	if _dirty:
-		spread_template()
+	if _dirty and not _generation_in_progress:
 		_dirty = false
+		call_deferred("spread_template")
 
 func _exit_tree():
 	if not Engine.is_editor_hint():
 		return
-	# Clean up any remaining spread nodes
 	clear_children()
 
 func _mark_dirty():
 	_dirty = true
 
 func clear_children():
-	# Clear existing children except the template node
 	var children_to_remove = []
 	for child in get_children(true):
 		if child.has_meta(SPREADER_NODE_META):
 			children_to_remove.append(child)
-	
-	# Remove children immediately for better performance
 	for child in children_to_remove:
 		remove_child(child)
 		child.queue_free()
 
 func get_random_position_in_area() -> Vector3:
 	if spread_area_3d is SphereShape3D:
-		# Sphere: Random point within the sphere's radius using more uniform distribution
 		var radius = spread_area_3d.get_radius()
 		var u = rng.randf()
 		var v = rng.randf()
 		var theta = u * TAU
 		var phi = acos(2.0 * v - 1.0)
-		var r = radius * pow(rng.randf(), 1.0/3.0)  # Cubic root for uniform volume distribution
-		
-		var x = r * sin(phi) * cos(theta)
-		var y = r * sin(phi) * sin(theta)
-		var z = r * cos(phi)
-		return Vector3(x, y, z)
-
+		var r = radius * pow(rng.randf(), 1.0/3.0)
+		return Vector3(r * sin(phi) * cos(theta), r * sin(phi) * sin(theta), r * cos(phi))
 	if spread_area_3d is BoxShape3D:
-		# Box: Random point within the box's size
 		var size = spread_area_3d.size
-		var x = rng.randf_range(-size.x * 0.5, size.x * 0.5)
-		var y = rng.randf_range(-size.y * 0.5, size.y * 0.5)
-		var z = rng.randf_range(-size.z * 0.5, size.z * 0.5)
-		return Vector3(x, y, z)
-
+		return Vector3(
+			rng.randf_range(-size.x * 0.5, size.x * 0.5),
+			rng.randf_range(-size.y * 0.5, size.y * 0.5),
+			rng.randf_range(-size.z * 0.5, size.z * 0.5)
+		)
 	if spread_area_3d is CapsuleShape3D:
-		# Capsule: Random point within the capsule's bounds
 		var radius = spread_area_3d.get_radius()
 		var height = spread_area_3d.get_height() * 0.5
-		
-		# Choose either hemisphere or cylindrical part
-		if rng.randf() < noise_threshold:  # Bias towards cylinder part
-			# Generate point in the cylinder
+		if rng.randf() < noise_threshold:
 			var angle = rng.randf() * TAU
-			var r = radius * sqrt(rng.randf())  # Square root for uniform area distribution
-			var x = r * cos(angle)
-			var z = r * sin(angle)
-			var y = rng.randf_range(-height, height)
-			return Vector3(x, y, z)
+			var r = radius * sqrt(rng.randf())
+			return Vector3(r * cos(angle), rng.randf_range(-height, height), r * sin(angle))
 		else:
-			# Generate point in one of the hemispheres
 			var hemisphere_y = height if rng.randf() < noise_threshold else -height
 			var u = rng.randf()
 			var v = rng.randf()
 			var theta = u * TAU
-			var phi = acos(1.0 - v)  # Only upper hemisphere
+			var phi = acos(1.0 - v)
 			var r = radius * pow(rng.randf(), 1.0/3.0)
-			
-			var x = r * sin(phi) * cos(theta)
-			var y = hemisphere_y + r * cos(phi) * (1 if hemisphere_y > 0 else -1)
-			var z = r * sin(phi) * sin(theta)
-			return Vector3(x, y, z)
-
+			return Vector3(
+				r * sin(phi) * cos(theta),
+				hemisphere_y + r * cos(phi) * (1 if hemisphere_y > 0 else -1),
+				r * sin(phi) * sin(theta)
+			)
 	if spread_area_3d is CylinderShape3D:
-		# Cylinder: Random point within the cylinder's bounds
 		var radius = spread_area_3d.get_radius()
 		var height = spread_area_3d.get_height() * 0.5
 		var angle = rng.randf() * TAU
-		var r = radius * sqrt(rng.randf())  # Square root for uniform area distribution
-		var x = r * cos(angle)
-		var z = r * sin(angle)
-		var y = rng.randf_range(-height, height)
-		return Vector3(x, y, z)
-
+		var r = radius * sqrt(rng.randf())
+		return Vector3(r * cos(angle), rng.randf_range(-height, height), r * sin(angle))
 	if spread_area_3d is HeightMapShape3D:
 		var width = spread_area_3d.map_width
 		var depth = spread_area_3d.map_depth
 		if width <= 0 or depth <= 0 or spread_area_3d.map_data.size() == 0:
 			return Vector3.ZERO
-			
 		var x = rng.randi_range(0, width - 1)
 		var z = rng.randi_range(0, depth - 1)
 		var index = x + z * width
 		if index < spread_area_3d.map_data.size():
-			var y = spread_area_3d.map_data[index]
-			return Vector3(x, y, z)
+			return Vector3(x, spread_area_3d.map_data[index], z)
 		return Vector3.ZERO
-
 	if spread_area_3d is WorldBoundaryShape3D:
-		# WorldBoundary: Limited to reasonable bounds
-		var bound = 100.0  # Reasonable limit
-		return Vector3(
-			rng.randf_range(-bound, bound),
-			0,  # Usually represents ground plane
-			rng.randf_range(-bound, bound)
-		)
-
+		var bound = 100.0
+		return Vector3(rng.randf_range(-bound, bound), 0, rng.randf_range(-bound, bound))
 	if spread_area_3d is ConvexPolygonShape3D or spread_area_3d is ConcavePolygonShape3D:
-		# Convex/Concave Polygon: Use AABB approximation
-		var points = spread_area_3d.points if spread_area_3d.has_method("get_points") else []
-		if points.size() == 0:
+		var pts = spread_area_3d.points if spread_area_3d.has_method("get_points") else []
+		if pts.size() == 0:
 			return Vector3.ZERO
-			
-		# Calculate bounding box from points
-		var min_point = points[0]
-		var max_point = points[0]
-		for point in points:
-			min_point = min_point.min(point)
-			max_point = max_point.max(point)
-		
+		var min_point = pts[0]
+		var max_point = pts[0]
+		for p in pts:
+			min_point = min_point.min(p)
+			max_point = max_point.max(p)
 		return Vector3(
 			rng.randf_range(min_point.x, max_point.x),
 			rng.randf_range(min_point.y, max_point.y),
 			rng.randf_range(min_point.z, max_point.z)
 		)
-	
-	print("Warning: Shape type not supported for spreading: ", spread_area_3d.get_class())
+	push_warning("CSGSpreader3D: Shape type not supported")
 	return Vector3.ZERO
 
-func spread_template():		
-	if not spread_area_3d:
+func spread_template():
+	if _generation_in_progress:
 		return
-	
+	_generation_in_progress = true
+	if not spread_area_3d:
+		_generation_in_progress = false
+		return
 	clear_children()
-
 	var template_node = get_node_or_null(template_node_path)
 	if not template_node:
+		_generation_in_progress = false
 		return
 
-	# Set the RNG seed for consistent results
 	rng.seed = _seed
-
-	# Spread the template node around the area
 	var instances_created = 0
-	var placed_positions = []  # Track positions for collision avoidance
-	
-	for i in range(_max_count):
+	var placed_positions = []
+	var budget = min(_max_count, MAX_INSTANCES)
+	if _max_count > MAX_INSTANCES:
+		push_warning("CSGSpreader3D: max_count %s exceeds cap %s. Limiting." % [_max_count, MAX_INSTANCES])
+	for i in range(budget):
 		var noise_value = rng.randf()
 		if noise_value <= _noise_threshold:
 			continue
-		
 		var position_found = false
 		var final_position = Vector3.ZERO
-		
-		# Try to find a valid position (with collision avoidance if enabled)
-		for attempt in range(_max_placement_attempts if _avoid_overlaps else 1):
+		var attempts = _max_placement_attempts if _avoid_overlaps else 1
+		for attempt in range(attempts):
 			var test_position = get_random_position_in_area()
-			
 			if not _avoid_overlaps:
 				final_position = test_position
 				position_found = true
 				break
-			
-			# Check for overlaps with existing positions
 			var overlap = false
 			for existing_pos in placed_positions:
 				if test_position.distance_to(existing_pos) < _min_distance:
 					overlap = true
 					break
-			
 			if not overlap:
 				final_position = test_position
 				position_found = true
 				break
-		
 		if not position_found:
-			continue  # Skip this instance if no valid position found
-			
+			continue
 		var instance = template_node.duplicate()
+		if instance == null:
+			continue
 		instance.set_meta(SPREADER_NODE_META, true)
-		
-		# Position the instance
 		instance.transform.origin = final_position
 		placed_positions.append(final_position)
-		
-		# Apply rotation if enabled
 		if _allow_rotation:
 			var rotation_y = rng.randf_range(0, TAU)
-			instance.transform.basis = instance.transform.basis.rotated(Vector3.UP, rotation_y)
-		
-		# Apply scale if enabled
+			instance.rotate_y(rotation_y)
 		if _allow_scale:
-			var scale_factor = rng.randf_range(0.5, 2.0)  # More reasonable scale range
-			instance.transform.basis = instance.transform.basis.scaled(Vector3.ONE * scale_factor)
-		
+			var scale_factor = rng.randf_range(0.5, 2.0)
+			instance.scale *= scale_factor
 		add_child(instance)
 		instances_created += 1
+	estimated_instances = instances_created
+	_generation_in_progress = false
+
+func bake_instances():
+	if get_child_count() == 0:
+		return
+	var stack = []
+	stack.append_array(get_children())
+	while stack.size() > 0:
+		var node = stack.pop_back()
+		node.set_owner(owner)
+		stack.append_array(node.get_children())

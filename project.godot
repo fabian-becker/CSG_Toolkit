@@ -11,8 +11,8 @@ config_version=5
 [application]
 
 config/name="CSG_Toolkit"
-run/main_scene="res://addons/csg_toolkit/demo/spreader_demo.tscn"
-config/features=PackedStringArray("4.4", "Forward Plus")
+run/main_scene="res://addons/csg_toolkit/demo/demo.tscn"
+config/features=PackedStringArray("4.5", "Forward Plus")
 boot_splash/show_image=false
 
 [autoload]

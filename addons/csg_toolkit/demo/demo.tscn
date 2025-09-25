@@ -1,0 +1,69 @@
+[gd_scene load_steps=7 format=3 uid="uid://bltlelosbn4ky"]
+
+[ext_resource type="Script" uid="uid://c68dxahp0v5xg" path="res://addons/csg_toolkit/scripts/csg_repeater_3d.gd" id="1_mnwru"]
+[ext_resource type="Script" uid="uid://bc1sxg4vy464o" path="res://addons/csg_toolkit/scripts/patterns/grid_pattern.gd" id="2_mnwru"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_i7qq0"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_lhy2n"]
+sky_material = SubResource("ProceduralSkyMaterial_i7qq0")
+
+[sub_resource type="Environment" id="Environment_mnwru"]
+background_mode = 2
+sky = SubResource("Sky_lhy2n")
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="Resource" id="Resource_fg620"]
+script = ExtResource("2_mnwru")
+count_x = 4
+count_y = 3
+count_z = 3
+spacing = Vector3(1, 1, 1)
+metadata/_custom_type_script = "uid://bc1sxg4vy464o"
+
+[node name="Node" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_mnwru")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(-0.9318623, 0, -0.36281213, 0, 1, 0, 0.36281213, 0, -0.9318623, 1.3680165, 1.0718846, -2.9172351)
+current = true
+
+[node name="CSGRepeater3D" type="CSGCombiner3D" parent="."]
+script = ExtResource("1_mnwru")
+template_node_path = NodePath("CSGCombiner3D2")
+estimated_instances = 35
+pattern = SubResource("Resource_fg620")
+randomize_rotation = false
+randomize_rot_x = false
+randomize_rot_y = false
+randomize_rot_z = false
+randomize_scale = false
+scale_variance = 0.0
+randomize_scale_x = false
+randomize_scale_y = false
+randomize_scale_z = false
+metadata/_custom_type_script = "uid://c68dxahp0v5xg"
+
+[node name="CSGCombiner3D2" type="CSGCombiner3D" parent="CSGRepeater3D"]
+
+[node name="CSGBox3D" type="CSGBox3D" parent="CSGRepeater3D/CSGCombiner3D2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.48632813)
+size = Vector3(1, 1, 1.9726563)
+
+[node name="CSGBox3D2" type="CSGBox3D" parent="CSGRepeater3D/CSGCombiner3D2/CSGBox3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.51814646, 0.37408447, -0.24641752)
+size = Vector3(1, 1.748169, 1)
+
+[node name="CSGBox3D" type="CSGBox3D" parent="CSGRepeater3D/CSGCombiner3D2/CSGBox3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4555664, 0.08105469)
+operation = 2
+size = Vector3(1, 1.9111328, 0.8378906)

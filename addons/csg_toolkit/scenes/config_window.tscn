@@ -7,6 +7,7 @@
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_vj6tm"]
 
 [node name="ConfigWindow" type="Window"]
+oversampling_override = 1.0
 title = "CSG Toolit Configuration"
 initial_position = 1
 size = Vector2i(480, 360)
@@ -43,8 +44,8 @@ theme_override_styles/separator = SubResource("StyleBoxEmpty_ng5lh")
 
 [node name="OptionButton" type="OptionButton" parent="MarginContainer/VBoxContainer/HBoxContainer"]
 layout_mode = 2
-item_count = 2
 selected = 0
+item_count = 2
 popup/item_0/text = "Sibling"
 popup/item_0/id = 0
 popup/item_1/text = "Child"
@@ -66,6 +67,22 @@ theme_override_styles/separator = SubResource("StyleBoxEmpty_ng5lh")
 layout_mode = 2
 text = "Shift"
 
+[node name="HBoxContainer4" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer4"]
+layout_mode = 2
+text = "Behvaior Toggle"
+
+[node name="VSeparator" type="VSeparator" parent="MarginContainer/VBoxContainer/HBoxContainer4"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/separator = SubResource("StyleBoxEmpty_ng5lh")
+
+[node name="Button" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer4"]
+layout_mode = 2
+text = "Shift"
+
 [node name="HBoxContainer3" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 
@@ -80,6 +97,7 @@ theme_override_styles/separator = SubResource("StyleBoxEmpty_ng5lh")
 
 [node name="CheckButton" type="CheckBox" parent="MarginContainer/VBoxContainer/HBoxContainer3"]
 layout_mode = 2
+button_pressed = true
 
 [node name="HSeparator" type="HSeparator" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -102,5 +120,6 @@ uri = "https://ko-fi.com/luckyteapot"
 
 [connection signal="item_selected" from="MarginContainer/VBoxContainer/HBoxContainer/OptionButton" to="." method="_on_option_button_item_selected"]
 [connection signal="pressed" from="MarginContainer/VBoxContainer/HBoxContainer2/Button" to="." method="_on_button_pressed"]
+[connection signal="pressed" from="MarginContainer/VBoxContainer/HBoxContainer4/Button" to="." method="_on_second_button_pressed"]
 [connection signal="toggled" from="MarginContainer/VBoxContainer/HBoxContainer3/CheckButton" to="." method="_on_check_box_toggled"]
 [connection signal="pressed" from="MarginContainer/VBoxContainer/Save" to="." method="_on_save_pressed"]
