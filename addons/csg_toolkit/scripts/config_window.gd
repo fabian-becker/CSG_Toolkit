@@ -8,6 +8,7 @@ extends Window
 @onready var action_key_button: Button = $MarginContainer/VBoxContainer/HBoxContainer2/Button
 @onready var behvaior_toogle_button: Button = $MarginContainer/VBoxContainer/HBoxContainer4/Button
 @onready var auto_hide_switch: CheckBox = $MarginContainer/VBoxContainer/HBoxContainer3/CheckButton
+
 signal key_press(key: InputEventKey)
  
 func _ready():
@@ -28,7 +29,7 @@ func _unhandled_input(event):
 
 func _on_save_pressed():
 	config.save_config()
-
+	hide()
 
 func _on_button_pressed():
 	var key_event: InputEventKey = await key_press
