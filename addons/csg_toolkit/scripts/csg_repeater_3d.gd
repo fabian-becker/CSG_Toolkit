@@ -6,6 +6,7 @@ class_name CSGRepeater3D extends CSGCombiner3D
 const _REF_GRID = preload("res://addons/csg_toolkit/scripts/patterns/grid_pattern.gd") # ensure subclass scripts loaded
 const _REF_CIRC = preload("res://addons/csg_toolkit/scripts/patterns/circular_pattern.gd")
 const _REF_SPIRAL = preload("res://addons/csg_toolkit/scripts/patterns/spiral_pattern.gd")
+const _REF_NOISE = preload("res://addons/csg_toolkit/scripts/patterns/noise_pattern.gd")
 
 const REPEATER_NODE_META = "REPEATED_NODE_META"
 const MAX_INSTANCES = 20000
@@ -24,6 +25,13 @@ var _template_node_scene: PackedScene
 	set(value):
 		_template_node_scene = value
 		_mark_dirty()
+
+var _hide_template: bool = true
+@export var hide_template: bool = true:
+	get: return _hide_template
+	set(value):
+		_hide_template = value
+		_update_template_visibility()
 
 ## repeat & spacing removed (migrated into pattern resources)
 
@@ -218,6 +226,13 @@ func _exit_tree():
 func _mark_dirty():
 	_dirty = true
 
+func _update_template_visibility():
+	if not is_inside_tree():
+		return
+	var template_node = get_node_or_null(template_node_path)
+	if template_node and template_node is Node3D:
+		template_node.visible = not _hide_template
+
 func clear_children():
 	# Clear existing children except the template node
 	var children_to_remove = []
@@ -277,12 +292,17 @@ func repeat_template():
 			continue
 		instance.set_meta(REPEATER_NODE_META, true)
 		instance.transform.origin = position
+		# Ensure instance is visible regardless of template visibility
+		if instance is Node3D:
+			instance.visible = true
 		_apply_variations(instance)
 		add_child(instance)
 
 	if using_scene:
 		remove_child(template_node)
 		template_node.queue_free()
+	else:
+		_update_template_visibility()
 	_generation_in_progress = false
 
 func _generate_positions(template_size: Vector3) -> Array:

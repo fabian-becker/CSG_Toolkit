@@ -2,12 +2,12 @@
 class_name CSGGridPattern
 extends CSGPattern
 
-@export var count_x: int = 1
+@export var count_x: int = 2
 @export var count_y: int = 1
 @export var count_z: int = 1
 @export var spacing: Vector3 = Vector3.ZERO
 
-## If true, base step on template size + spacing; else spacing only
+## If true, automatically adds template AABB size to spacing for proper object separation
 @export var use_template_size: bool = true
 
 func _generate(ctx: Dictionary) -> Array:

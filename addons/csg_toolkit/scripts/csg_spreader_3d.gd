@@ -13,6 +13,13 @@ var _template_node_path: NodePath
 		_template_node_path = value
 		_mark_dirty()
 
+var _hide_template: bool = true
+@export var hide_template: bool = true:
+	get: return _hide_template
+	set(value):
+		_hide_template = value
+		_update_template_visibility()
+
 var _spread_area_3d: Shape3D = null
 @export var spread_area_3d: Shape3D = null:
 	get: return _spread_area_3d
@@ -109,6 +116,13 @@ func _exit_tree():
 
 func _mark_dirty():
 	_dirty = true
+
+func _update_template_visibility():
+	if not is_inside_tree():
+		return
+	var template_node = get_node_or_null(template_node_path)
+	if template_node and template_node is Node3D:
+		template_node.visible = not _hide_template
 
 func clear_children():
 	var children_to_remove = []
@@ -239,6 +253,9 @@ func spread_template():
 			continue
 		instance.set_meta(SPREADER_NODE_META, true)
 		instance.transform.origin = final_position
+		# Ensure instance is visible regardless of template visibility
+		if instance is Node3D:
+			instance.visible = true
 		placed_positions.append(final_position)
 		if _allow_rotation:
 			var rotation_y = rng.randf_range(0, TAU)
@@ -249,6 +266,7 @@ func spread_template():
 		add_child(instance)
 		instances_created += 1
 	estimated_instances = instances_created
+	_update_template_visibility()
 	_generation_in_progress = false
 
 func bake_instances():
