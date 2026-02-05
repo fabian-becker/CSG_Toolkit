@@ -92,6 +92,9 @@ var rng: RandomNumberGenerator
 func _ready():
 	rng = RandomNumberGenerator.new()
 	_mark_dirty()
+	# Generate instances in-game on ready
+	if not Engine.is_editor_hint():
+		call_deferred("spread_template")
 
 func _process(_delta):
 	if not Engine.is_editor_hint(): return

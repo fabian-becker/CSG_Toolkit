@@ -197,6 +197,9 @@ func _ready():
 	if pattern == null:
 		pattern = CSGGridPattern.new()
 	_mark_dirty()
+	# Generate instances in-game on ready
+	if not Engine.is_editor_hint():
+		call_deferred("repeat_template")
 
 func _on_pattern_changed():
 	# Called when the assigned pattern resource's exported properties are edited in inspector.

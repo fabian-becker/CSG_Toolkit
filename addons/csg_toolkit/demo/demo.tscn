@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://bltlelosbn4ky"]
+[gd_scene format=3 uid="uid://bltlelosbn4ky"]
 
 [ext_resource type="Script" uid="uid://c68dxahp0v5xg" path="res://addons/csg_toolkit/scripts/csg_repeater_3d.gd" id="1_mnwru"]
 [ext_resource type="Script" uid="uid://bc1sxg4vy464o" path="res://addons/csg_toolkit/scripts/patterns/grid_pattern.gd" id="2_mnwru"]
@@ -24,20 +24,20 @@ count_z = 3
 spacing = Vector3(1, 1, 1)
 metadata/_custom_type_script = "uid://bc1sxg4vy464o"
 
-[node name="Node" type="Node3D"]
+[node name="Node" type="Node3D" unique_id=1351203367]
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=190667961]
 environment = SubResource("Environment_mnwru")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=656509290]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
 shadow_enabled = true
 
-[node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(-0.9318623, 0, -0.36281213, 0, 1, 0, 0.36281213, 0, -0.9318623, 1.3680165, 1.0718846, -2.9172351)
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1763227161]
+transform = Transform3D(-0.93186235, 0, -0.36281216, 0, 1, 0, 0.36281216, 0, -0.9318623, -5.236788, 3.9650297, -6.404826)
 current = true
 
-[node name="CSGRepeater3D" type="CSGCombiner3D" parent="."]
+[node name="CSGRepeater3D" type="CSGCombiner3D" parent="." unique_id=873109275]
 script = ExtResource("1_mnwru")
 template_node_path = NodePath("CSGCombiner3D2")
 estimated_instances = 35
@@ -53,17 +53,17 @@ randomize_scale_y = false
 randomize_scale_z = false
 metadata/_custom_type_script = "uid://c68dxahp0v5xg"
 
-[node name="CSGCombiner3D2" type="CSGCombiner3D" parent="CSGRepeater3D"]
+[node name="CSGCombiner3D2" type="CSGCombiner3D" parent="CSGRepeater3D" unique_id=109113911]
 
-[node name="CSGBox3D" type="CSGBox3D" parent="CSGRepeater3D/CSGCombiner3D2"]
+[node name="CSGBox3D" type="CSGBox3D" parent="CSGRepeater3D/CSGCombiner3D2" unique_id=110356410]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.48632813)
 size = Vector3(1, 1, 1.9726563)
 
-[node name="CSGBox3D2" type="CSGBox3D" parent="CSGRepeater3D/CSGCombiner3D2/CSGBox3D"]
+[node name="CSGBox3D2" type="CSGBox3D" parent="CSGRepeater3D/CSGCombiner3D2/CSGBox3D" unique_id=194604460]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.51814646, 0.37408447, -0.24641752)
 size = Vector3(1, 1.748169, 1)
 
-[node name="CSGBox3D" type="CSGBox3D" parent="CSGRepeater3D/CSGCombiner3D2/CSGBox3D"]
+[node name="CSGBox3D" type="CSGBox3D" parent="CSGRepeater3D/CSGCombiner3D2/CSGBox3D" unique_id=763032662]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4555664, 0.08105469)
 operation = 2
 size = Vector3(1, 1.9111328, 0.8378906)

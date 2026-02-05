@@ -8,16 +8,20 @@
 
 config_version=5
 
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
+
 [application]
 
 config/name="CSG_Toolkit"
 run/main_scene="res://addons/csg_toolkit/demo/demo.tscn"
-config/features=PackedStringArray("4.5", "Forward Plus")
+config/features=PackedStringArray("4.6", "Forward Plus")
 boot_splash/show_image=false
 
 [autoload]
 
-CsgToolkitAutoload="*res://addons/csg_toolkit/scripts/csg_toolkit_config.gd"
+CsgToolkitAutoload="*uid://w8ad8q4lneis"
 
 [dotnet]
 
