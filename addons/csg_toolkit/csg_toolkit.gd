@@ -46,6 +46,9 @@ func _exit_tree():
 	
 	remove_autoload_singleton(AUTOLOAD_NAME)
 	
+	# Note: ProjectSettings for CSG Toolkit are preserved in project.godot
+	# They can be manually removed from Project Settings if desired
+	
 	remove_control_from_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_SIDE_LEFT, sidebar)
 	sidebar.free()
 	remove_control_from_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_MENU, topbar)
