@@ -59,15 +59,22 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _accept_shortcut_feedback(label: String) -> void:
-	# Provide lightweight visual/editor feedback.
-	# Avoid static call to non-existent get_status_bar in Godot 4.
-	# Fallback: print to output.
-	var ei: EditorInterface = EditorInterface
-	if ei:
-		# Some editor builds expose status bar via base control's children - skip deep search for now.
-		print("CSG Operation: %s" % label)
-	else:
-		print("CSG Operation: %s" % label)
+	# Bypassing the GDScriptNativeClass assignment error.
+	# EditorInterface is globally available if needed later.
+	print("CSG Operation shortcut activated: %s" % label)
+
+
+func set_operation(val: int) -> void:
+	match val:
+		0:
+			operation = CSGShape3D.OPERATION_UNION
+		1:
+			operation = CSGShape3D.OPERATION_INTERSECTION
+		2:
+			operation = CSGShape3D.OPERATION_SUBTRACTION
+		_:
+			operation = CSGShape3D.OPERATION_UNION
+	print("CSG operation set to index: %d" % val)
 
 
 func _on_box_pressed() -> void:
@@ -147,36 +154,30 @@ func _update_picker_icon(
 		picker_button.icon = preview
 
 
-func set_operation(val: int) -> void:
-	match val:
-		0:
-			operation = CSGShape3D.OPERATION_UNION
-		1:
-			operation = CSGShape3D.OPERATION_INTERSECTION
-		2:
-			operation = CSGShape3D.OPERATION_SUBTRACTION
-		_:
-			operation = CSGShape3D.OPERATION_UNION
-
-
 func update_material(material: BaseMaterial3D) -> void:
 	selected_material = material
 	selected_shader = null
+	print("CSG material updated: %s" % material.resource_path)
 
 
 func update_shader(shader: ShaderMaterial) -> void:
 	selected_material = null
 	selected_shader = shader
+	print("CSG shader updated: %s" % shader.resource_path)
 
 
 func create_csg(type: Variant) -> void:
+	print("Creating new CSG node of type: %s" % type)
 	var selection: EditorSelection = EditorInterface.get_selection()
 	var selected_nodes: Array[Node] = selection.get_selected_nodes()
-	if selected_nodes.is_empty() or !(selected_nodes[0] is CSGShape3D):
-		push_warning("Select a CSGShape3D to add a new CSG node")
+	
+	if selected_nodes.is_empty() or not (selected_nodes[0] is CSGShape3D):
+		push_warning("Select a CSGShape3D to add a new CSG node.")
 		return
+		
 	var selected_node: CSGShape3D = selected_nodes[0]
 	var csg: CSGShape3D
+	
 	match type:
 		CSGBox3D:
 			csg = CSGBox3D.new()
@@ -203,12 +204,12 @@ func create_csg(type: Variant) -> void:
 	var parent: Node
 	var add_as_child: bool = false
 
-	# Behavior inversion now uses secondary_action_key (e.g. Alt) instead of primary action key
+	# Behavior inversion uses secondary_action_key (e.g., Alt)
 	var invert: bool = Input.is_key_pressed(config.secondary_action_key)
 	if config.default_behavior == CsgTkConfig.CSGBehavior.SIBLING:
 		add_as_child = invert
 	else:
-		add_as_child = !invert
+		add_as_child = not invert
 
 	parent = selected_node if add_as_child else selected_node.get_parent()
 	if parent == null:
