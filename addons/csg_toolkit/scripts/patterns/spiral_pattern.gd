@@ -12,9 +12,11 @@ extends CSGPattern
 @export var points: int = 32
 
 
-func _generate(ctx: Dictionary) -> Array:
-	var positions: Array = []
+func _generate(ctx: Dictionary) -> Array[Vector3]:
+	var positions: Array[Vector3] = []
 	var template_size: Vector3 = ctx.get("template_size", Vector3.ONE)
+	var jitter: float = ctx.get("position_jitter", 0.0)
+	var rng: RandomNumberGenerator = ctx.get("rng", null)
 	var t_turns: float = max(0.1, turns)
 	var r_start: float = max(0.0, start_radius)
 	var r_end: float = max(r_start, end_radius)
@@ -23,13 +25,20 @@ func _generate(ctx: Dictionary) -> Array:
 		return [Vector3.ZERO]
 	for i in range(total):
 		var t: float = float(i) / float(total - 1)
-		var angle = t * t_turns * TAU
-		var curve_t = t
+		var angle: float = t * t_turns * TAU
+		var curve_t: float = t
 		if use_radius_curve and radius_curve and radius_curve.get_point_count() > 0:
 			curve_t = clamp(radius_curve.sample(t), 0.0, 1.0)
-		var radius: float = lerp(r_start, r_end, curve_t)
+		var r: float = lerp(r_start, r_end, curve_t)
 		var y_pos: float = t * (total_height if total_height > 0.0 else template_size.y * 1.0)
-		positions.append(Vector3(cos(angle) * radius, y_pos, sin(angle) * radius))
+		var position := Vector3(cos(angle) * r, y_pos, sin(angle) * r)
+		if jitter > 0.0 and rng != null:
+			position += Vector3(
+				rng.randf_range(-jitter, jitter),
+				rng.randf_range(-jitter, jitter),
+				rng.randf_range(-jitter, jitter)
+			)
+		positions.append(position)
 	return positions
 
 

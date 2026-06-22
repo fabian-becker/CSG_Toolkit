@@ -11,20 +11,20 @@ extends CSGPattern
 @export var use_template_size: bool = true
 
 
-func _generate(ctx: Dictionary) -> Array:
-	var positions: Array = []
+func _generate(ctx: Dictionary) -> Array[Vector3]:
+	var positions: Array[Vector3] = []
 	var template_size: Vector3 = ctx.get("template_size", Vector3.ONE)
 	var jitter: float = ctx.get("position_jitter", 0.0)
-	var rng: RandomNumberGenerator = ctx.rng
-	var cx: float = max(1, count_x)
-	var cy: float = max(1, count_y)
-	var cz: float = max(1, count_z)
+	var rng: RandomNumberGenerator = ctx.get("rng", null)
+	var cx: int = max(1, count_x)
+	var cy: int = max(1, count_y)
+	var cz: int = max(1, count_z)
 	var base_step: Vector3 = (template_size if use_template_size else Vector3.ZERO) + spacing
 	for x in range(cx):
 		for y in range(cy):
 			for z in range(cz):
-				var position = Vector3(x * base_step.x, y * base_step.y, z * base_step.z)
-				if jitter > 0.0:
+				var position := Vector3(x * base_step.x, y * base_step.y, z * base_step.z)
+				if jitter > 0.0 and rng != null:
 					position += Vector3(
 						rng.randf_range(-jitter, jitter),
 						rng.randf_range(-jitter, jitter),
@@ -32,3 +32,7 @@ func _generate(ctx: Dictionary) -> Array:
 					)
 				positions.append(position)
 	return positions
+
+
+func get_estimated_count(_ctx: Dictionary) -> int:
+	return max(1, count_x) * max(1, count_y) * max(1, count_z)

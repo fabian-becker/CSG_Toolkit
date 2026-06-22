@@ -334,7 +334,7 @@ func repeat_template() -> void:
 	rng.seed = _random_seed
 	# template_size already computed earlier (template_size variable)
 	var positions = _generate_positions(template_size)
-	estimated_instances = positions.size() - 1
+	var instances_created: int = 0
 
 	for i in range(positions.size()):
 		var position = positions[i]
@@ -350,6 +350,9 @@ func repeat_template() -> void:
 			instance.visible = true
 		_apply_variations(instance)
 		add_child(instance)
+		instances_created += 1
+
+	estimated_instances = instances_created
 
 	if using_scene:
 		remove_child(template_node)
@@ -359,9 +362,12 @@ func repeat_template() -> void:
 	_generation_in_progress = false
 
 
-func _generate_positions(template_size: Vector3) -> Array:
+func _generate_positions(template_size: Vector3) -> Array[Vector3]:
 	var ctx: Dictionary = {
-		"template_size": template_size, "rng": rng, "position_jitter": _position_jitter
+		"template_size": template_size,
+		"rng": rng,
+		"position_jitter": _position_jitter,
+		"max_instances": MAX_INSTANCES,
 	}
 	if pattern == null:
 		return []
@@ -465,8 +471,8 @@ func regenerate() -> void:
 
 
 # -- Custom property list (Godot 4.5 group enable support) -------------------------
-func _get_property_list() -> Array:
-	var props: Array = []
+func _get_property_list() -> Array[Dictionary]:
+	var props: Array[Dictionary] = []
 
 	# Keep default exported properties (engine already exposes them). Only inject
 	# the rotation variation cluster with group enable + subgroup organization.
@@ -581,7 +587,7 @@ func get_instance_count() -> int:
 	var ctx: Dictionary = {
 		"template_size": Vector3.ONE, "rng": rng, "position_jitter": _position_jitter
 	}
-	return max(0, pattern.get_estimated_count(ctx) - 1)
+	return max(0, pattern.get_estimated_count(ctx))
 
 
 func apply_template() -> void:

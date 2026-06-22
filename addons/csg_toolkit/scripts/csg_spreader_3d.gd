@@ -11,6 +11,13 @@ const MAX_INSTANCES = 20000
 		_template_node_path = value
 		_mark_dirty()
 
+@export var template_node_scene: PackedScene:
+	get:
+		return _template_node_scene
+	set(value):
+		_template_node_scene = value
+		_mark_dirty()
+
 @export var hide_template: bool = true:
 	get:
 		return _hide_template
@@ -97,6 +104,7 @@ var rng: RandomNumberGenerator
 var _dirty: bool = false
 var _generation_in_progress: bool = false
 var _template_node_path: NodePath
+var _template_node_scene: PackedScene
 var _hide_template: bool = true
 var _spread_area_3d: Shape3D = null
 var _max_count: int = 10
@@ -237,9 +245,15 @@ func spread_template() -> void:
 		return
 	clear_children()
 	var template_node: Node = get_node_or_null(template_node_path)
+	var using_scene: bool = false
+	# Fall back to a packed scene if no node path is assigned.
 	if not template_node:
-		_generation_in_progress = false
-		return
+		if not template_node_scene or not template_node_scene.can_instantiate():
+			_generation_in_progress = false
+			return
+		template_node = template_node_scene.instantiate()
+		using_scene = true
+		add_child(template_node)
 
 	rng.seed = _seed
 	var instances_created: int = 0
@@ -291,7 +305,11 @@ func spread_template() -> void:
 		add_child(instance)
 		instances_created += 1
 	estimated_instances = instances_created
-	_update_template_visibility()
+	if using_scene:
+		remove_child(template_node)
+		template_node.queue_free()
+	else:
+		_update_template_visibility()
 	_generation_in_progress = false
 
 

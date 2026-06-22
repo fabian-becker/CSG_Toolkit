@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://c68dxahp0v5xg" path="res://addons/csg_toolkit/scripts/csg_repeater_3d.gd" id="1_mnwru"]
 [ext_resource type="Script" uid="uid://3il6xs7cr7gj" path="res://addons/csg_toolkit/scripts/patterns/noise_pattern.gd" id="2_mnwru"]
+[ext_resource type="Script" uid="uid://rgfomqnhbhpk" path="res://addons/csg_toolkit/scripts/csg_spreader_3d.gd" id="3_fg620"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_i7qq0"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -16,12 +17,12 @@ sky = SubResource("Sky_lhy2n")
 tonemap_mode = 2
 glow_enabled = true
 
-[sub_resource type="Resource" id="Resource_fg620"]
+[sub_resource type="SphereShape3D" id="SphereShape3D_fohgw"]
+radius = 20.0
+
+[sub_resource type="Resource" id="Resource_u3rvm"]
 script = ExtResource("2_mnwru")
-bounds = Vector3(10, 1, 10)
-noise_threshold = 0.9
-noise_frequency = 16.0
-use_template_size = true
+bounds = Vector3(20, 1, 20)
 metadata/_custom_type_script = "uid://3il6xs7cr7gj"
 
 [node name="Node" type="Node3D" unique_id=1351203367]
@@ -37,11 +38,26 @@ shadow_enabled = true
 transform = Transform3D(-0.93186235, 0, -0.36281216, 0, 1, 0, 0.36281216, 0, -0.9318623, -5.236788, 3.9650297, -6.404826)
 current = true
 
+[node name="CSGCombiner3D2" type="CSGCombiner3D" parent="." unique_id=109113911]
+
+[node name="CSGBox3D" type="CSGBox3D" parent="CSGCombiner3D2" unique_id=1282016528]
+
+[node name="CSGSpreader3D" type="CSGCombiner3D" parent="." unique_id=982600237]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.31901503, -0.3383956, -22.101624)
+script = ExtResource("3_fg620")
+template_node_path = NodePath("../CSGCombiner3D2")
+hide_template = false
+spread_area_3d = SubResource("SphereShape3D_fohgw")
+max_count = 50
+estimated_instances = 22
+metadata/_custom_type_script = "uid://rgfomqnhbhpk"
+
 [node name="CSGRepeater3D" type="CSGCombiner3D" parent="." unique_id=873109275]
 script = ExtResource("1_mnwru")
-template_node_path = NodePath("CSGCombiner3D2")
-estimated_instances = 27
-pattern = SubResource("Resource_fg620")
+template_node_path = NodePath("../CSGCombiner3D2")
+hide_template = false
+estimated_instances = 201
+pattern = SubResource("Resource_u3rvm")
 randomize_rotation = false
 randomize_rot_x = false
 randomize_rot_y = false
@@ -52,20 +68,3 @@ randomize_scale_x = false
 randomize_scale_y = false
 randomize_scale_z = false
 metadata/_custom_type_script = "uid://c68dxahp0v5xg"
-
-[node name="CSGCombiner3D2" type="CSGCombiner3D" parent="CSGRepeater3D" unique_id=109113911]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.31901503, -0.3383956, -7.8776984)
-visible = false
-
-[node name="CSGBox3D" type="CSGBox3D" parent="CSGRepeater3D/CSGCombiner3D2" unique_id=110356410]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.48632813)
-size = Vector3(1, 1, 1.9726563)
-
-[node name="CSGBox3D2" type="CSGBox3D" parent="CSGRepeater3D/CSGCombiner3D2/CSGBox3D" unique_id=194604460]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.51814646, 0.37408447, -0.24641752)
-size = Vector3(1, 1.748169, 1)
-
-[node name="CSGBox3D" type="CSGBox3D" parent="CSGRepeater3D/CSGCombiner3D2/CSGBox3D" unique_id=763032662]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4555664, 0.08105469)
-operation = 2
-size = Vector3(1, 1.9111328, 0.8378906)
