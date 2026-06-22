@@ -8,7 +8,8 @@ extends CSGPattern
 ## If 0 use template_size.y
 @export var layer_height: float = 0.0
 ## Additional gap added per layer beyond base height
-@export var layer_spacing: float = 0.0 
+@export var layer_spacing: float = 0.0
+
 
 func _generate(ctx: Dictionary) -> Array:
 	var positions: Array = []
@@ -17,7 +18,7 @@ func _generate(ctx: Dictionary) -> Array:
 	var count: int = max(1, points)
 	if count <= 1:
 		return [Vector3.ZERO]
-	var lyr_count = max(1, layers)
+	var lyr_count: float = max(1, layers)
 	var base_y = layer_height if layer_height > 0.0 else template_size.y
 	var step_y = base_y + max(0.0, layer_spacing)
 	for i in range(count):
@@ -27,5 +28,6 @@ func _generate(ctx: Dictionary) -> Array:
 			positions.append(base_pos + Vector3(0, layer * step_y, 0))
 	return positions
 
-func get_estimated_count(ctx: Dictionary) -> int:
+
+func get_estimated_count(_ctx: Dictionary) -> int:
 	return max(1, points) * max(1, layers)

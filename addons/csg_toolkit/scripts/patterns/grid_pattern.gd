@@ -10,14 +10,15 @@ extends CSGPattern
 ## If true, automatically adds template AABB size to spacing for proper object separation
 @export var use_template_size: bool = true
 
+
 func _generate(ctx: Dictionary) -> Array:
 	var positions: Array = []
 	var template_size: Vector3 = ctx.get("template_size", Vector3.ONE)
 	var jitter: float = ctx.get("position_jitter", 0.0)
 	var rng: RandomNumberGenerator = ctx.rng
-	var cx = max(1, count_x)
-	var cy = max(1, count_y)
-	var cz = max(1, count_z)
+	var cx: float = max(1, count_x)
+	var cy: float = max(1, count_y)
+	var cz: float = max(1, count_z)
 	var base_step: Vector3 = (template_size if use_template_size else Vector3.ZERO) + spacing
 	for x in range(cx):
 		for y in range(cy):

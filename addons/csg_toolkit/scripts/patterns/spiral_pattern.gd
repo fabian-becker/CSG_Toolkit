@@ -11,6 +11,7 @@ extends CSGPattern
 @export var radius_curve: Curve
 @export var points: int = 32
 
+
 func _generate(ctx: Dictionary) -> Array:
 	var positions: Array = []
 	var template_size: Vector3 = ctx.get("template_size", Vector3.ONE)
@@ -26,14 +27,11 @@ func _generate(ctx: Dictionary) -> Array:
 		var curve_t = t
 		if use_radius_curve and radius_curve and radius_curve.get_point_count() > 0:
 			curve_t = clamp(radius_curve.sample(t), 0.0, 1.0)
-		var radius = lerp(r_start, r_end, curve_t)
+		var radius: float = lerp(r_start, r_end, curve_t)
 		var y_pos: float = t * (total_height if total_height > 0.0 else template_size.y * 1.0)
-		positions.append(Vector3(
-			cos(angle) * radius,
-			y_pos,
-			sin(angle) * radius
-		))
+		positions.append(Vector3(cos(angle) * radius, y_pos, sin(angle) * radius))
 	return positions
 
-func get_estimated_count(ctx: Dictionary) -> int:
+
+func get_estimated_count(_ctx: Dictionary) -> int:
 	return max(2, points)

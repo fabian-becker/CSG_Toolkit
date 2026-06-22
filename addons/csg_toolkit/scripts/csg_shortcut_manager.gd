@@ -1,6 +1,5 @@
 @tool
-extends Node
-class_name CsgShortcutManager
+class_name CsgShortcutManager extends Node
 
 # Provides global key handling for quick CSG creation & operation switching (Layers 1 & 2)
 # Delegates actual creation to the sidebar instance to reuse UndoRedo + material logic.
@@ -20,22 +19,26 @@ var _shape_key_map: Dictionary = {
 
 # Layer 2 operation selection numbers
 var _op_number_map: Dictionary = {
-	KEY_1: 0, # Union
-	KEY_2: 1, # Intersection
-	KEY_3: 2, # Subtraction
+	KEY_1: 0,  # Union
+	KEY_2: 1,  # Intersection
+	KEY_3: 2,  # Subtraction
 }
 
 # Optional cycle order
-var _op_cycle: Array = [0,1,2]
-var _cycle_index := 0
+var _op_cycle: Array = [0, 1, 2]
+var _cycle_index: int = 0
 
-func _enter_tree():
+
+func _enter_tree() -> void:
 	set_process_unhandled_key_input(true)
 
-func _unhandled_key_input(event: InputEvent):
-	if not event is InputEventKey: return
-	var ev := event as InputEventKey
-	if not ev.pressed or ev.echo: return
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not event is InputEventKey:
+		return
+	var ev: InputEventKey = event as InputEventKey
+	if not ev.pressed or ev.echo:
+		return
 	if config == null:
 		config = get_tree().root.get_node_or_null(CsgToolkit.AUTOLOAD_NAME) as CsgTkConfig
 	if sidebar == null:
@@ -47,8 +50,9 @@ func _unhandled_key_input(event: InputEvent):
 	var focus_owner = get_viewport().gui_get_focus_owner()
 	if focus_owner and (focus_owner is LineEdit or focus_owner is TextEdit):
 		return
-	
-	# Operation & shape shortcuts only trigger when primary action key is held (secondary key reserved for behavior inversion in creation)
+
+	# Operation & shape shortcuts only trigger when primary action key is held
+	# (secondary key reserved for behavior inversion in creation)
 	if Input.is_key_pressed(config.action_key):
 		if ev.physical_keycode in _op_number_map:
 			var op_val = _op_number_map[ev.physical_keycode]
@@ -67,7 +71,8 @@ func _unhandled_key_input(event: InputEvent):
 			_create_shape(_shape_key_map[ev.physical_keycode])
 			return
 
-func _create_shape(type_ref: Variant):
+
+func _create_shape(type_ref: Variant) -> void:
 	if sidebar == null:
 		_print_feedback("No sidebar found for creation")
 		return
@@ -75,12 +80,18 @@ func _create_shape(type_ref: Variant):
 	sidebar.create_csg(type_ref)
 	_print_feedback("Create %s (%s)" % [type_ref, _op_label(sidebar.operation)])
 
+
 func _op_label(op: int) -> String:
 	match op:
-		0: return "Union"
-		1: return "Intersect"
-		2: return "Subtract"
-		_: return str(op)
+		0:
+			return "Union"
+		1:
+			return "Intersect"
+		2:
+			return "Subtract"
+		_:
+			return str(op)
 
-func _print_feedback(msg: String):
+
+func _print_feedback(msg: String) -> void:
 	print("CSG Toolkit: %s" % msg)

@@ -1,37 +1,45 @@
 @tool
 class_name CsgToolkit extends EditorPlugin
-@onready var config: CsgTkConfig:
-	get:
-		return get_tree().root.get_node_or_null(AUTOLOAD_NAME) as CsgTkConfig
+const AUTOLOAD_NAME: String = "CsgToolkitAutoload"
+const SIDEBAR_SCENE: PackedScene = preload(
+	"res://addons/csg_toolkit/scenes/csg_side_toolkit_bar.tscn"
+)
+const TOPBAR_SCENE: PackedScene = preload(
+	"res://addons/csg_toolkit/scenes/csg_top_toolkit_bar.tscn"
+)
+const REPEATER_SCRIPT: GDScript = preload("res://addons/csg_toolkit/scripts/csg_repeater_3d.gd")
+const SPREADER_SCRIPT: GDScript = preload("res://addons/csg_toolkit/scripts/csg_spreader_3d.gd")
+
+static var csg_plugin_path: String
+static var undo_manager: EditorUndoRedoManager
 
 var sidebar: CSGSideToolkitBar
 var topbar: CSGTopToolkitBar
 var shortcut_manager: CsgShortcutManager
 
-const AUTOLOAD_NAME = "CsgToolkitAutoload"
-static var csg_plugin_path
-static var undo_manager: EditorUndoRedoManager
+@onready var config: CsgTkConfig:
+	get:
+		return get_tree().root.get_node_or_null(AUTOLOAD_NAME) as CsgTkConfig
 
-func _enter_tree():
+
+func _enter_tree() -> void:
 	# Config
 	add_autoload_singleton(AUTOLOAD_NAME, "res://addons/csg_toolkit/scripts/csg_toolkit_config.gd")
 	csg_plugin_path = get_path()
 	undo_manager = get_undo_redo()
-	
+
 	# Nodes
-	add_custom_type("CSGRepeater3D", "CSGCombiner3D", preload("res://addons/csg_toolkit/scripts/csg_repeater_3d.gd"), null)
-	add_custom_type("CSGSpreader3D", "CSGCombiner3D", preload("res://addons/csg_toolkit/scripts/csg_spreader_3d.gd"), null)
-	
+	add_custom_type("CSGRepeater3D", "CSGCombiner3D", REPEATER_SCRIPT, null)
+	add_custom_type("CSGSpreader3D", "CSGCombiner3D", SPREADER_SCRIPT, null)
+
 	# Sidebar
-	var sidebarScene = preload("res://addons/csg_toolkit/scenes/csg_side_toolkit_bar.tscn")
-	sidebar = sidebarScene.instantiate()
+	sidebar = SIDEBAR_SCENE.instantiate() as CSGSideToolkitBar
 	add_control_to_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_SIDE_LEFT, sidebar)
 	# Ensure sidebar can be found by shortcut manager if needed
 	sidebar.add_to_group("CSGSideToolkit")
-	
+
 	# Topbar
-	var topbarScene = preload("res://addons/csg_toolkit/scenes/csg_top_toolkit_bar.tscn")
-	topbar = topbarScene.instantiate()
+	topbar = TOPBAR_SCENE.instantiate() as CSGTopToolkitBar
 	add_control_to_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_MENU, topbar)
 
 	# Shortcut Manager
@@ -39,16 +47,17 @@ func _enter_tree():
 	get_tree().root.add_child(shortcut_manager)
 	shortcut_manager.sidebar = sidebar
 
-func _exit_tree():
+
+func _exit_tree() -> void:
 	remove_custom_type("CSGRepeater3D")
 	remove_custom_type("CSGSpreader3D")
 	undo_manager = null
-	
+
 	remove_autoload_singleton(AUTOLOAD_NAME)
-	
+
 	# Note: ProjectSettings for CSG Toolkit are preserved in project.godot
 	# They can be manually removed from Project Settings if desired
-	
+
 	remove_control_from_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_SIDE_LEFT, sidebar)
 	sidebar.free()
 	remove_control_from_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_MENU, topbar)
