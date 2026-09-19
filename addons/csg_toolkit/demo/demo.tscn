@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bltlelosbn4ky"]
 
 [ext_resource type="Script" uid="uid://c68dxahp0v5xg" path="res://addons/csg_toolkit/scripts/csg_repeater_3d.gd" id="1_mnwru"]
-[ext_resource type="Script" uid="uid://3il6xs7cr7gj" path="res://addons/csg_toolkit/scripts/patterns/noise_pattern.gd" id="2_mnwru"]
+[ext_resource type="Script" uid="uid://belgcjd0ys212" path="res://addons/csg_toolkit/scripts/patterns/spiral_pattern.gd" id="2_fg620"]
 [ext_resource type="Script" uid="uid://rgfomqnhbhpk" path="res://addons/csg_toolkit/scripts/csg_spreader_3d.gd" id="3_fg620"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_i7qq0"]
@@ -17,54 +17,55 @@ sky = SubResource("Sky_lhy2n")
 tonemap_mode = 2
 glow_enabled = true
 
-[sub_resource type="SphereShape3D" id="SphereShape3D_fohgw"]
-radius = 20.0
+[sub_resource type="Resource" id="Resource_cx0e5"]
+script = ExtResource("2_fg620")
+start_radius = 5.0
+total_height = 1.0
+points = 12
+metadata/_custom_type_script = "uid://belgcjd0ys212"
 
-[sub_resource type="Resource" id="Resource_u3rvm"]
-script = ExtResource("2_mnwru")
-bounds = Vector3(20, 1, 20)
-metadata/_custom_type_script = "uid://3il6xs7cr7gj"
+[sub_resource type="BoxShape3D" id="BoxShape3D_0e5cg"]
+size = Vector3(1.8647461, 1, 2.0932617)
 
-[node name="Node" type="Node3D" unique_id=1351203367]
+[node name="Node" type="Node3D" unique_id=1982297888]
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=190667961]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1328804019]
 environment = SubResource("Environment_mnwru")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=656509290]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=742938975]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
 shadow_enabled = true
 
-[node name="Camera3D" type="Camera3D" parent="." unique_id=1763227161]
-transform = Transform3D(-0.93186235, 0, -0.36281216, 0, 1, 0, 0.36281216, 0, -0.9318623, -5.236788, 3.9650297, -6.404826)
+[node name="Camera3D" type="Camera3D" parent="." unique_id=240396199]
+transform = Transform3D(-0.9318623, 0, -0.36281213, 0, 1, 0, 0.36281213, 0, -0.9318623, 1.3680165, 1.0718846, -2.9172351)
 current = true
 
-[node name="CSGCombiner3D2" type="CSGCombiner3D" parent="." unique_id=109113911]
-
-[node name="CSGBox3D" type="CSGBox3D" parent="CSGCombiner3D2" unique_id=1282016528]
-
-[node name="CSGSpreader3D" type="CSGCombiner3D" parent="." unique_id=982600237]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.31901503, -0.3383956, -22.101624)
-script = ExtResource("3_fg620")
-template_node_path = NodePath("../CSGCombiner3D2")
-hide_template = false
-spread_area_3d = SubResource("SphereShape3D_fohgw")
-max_count = 50
-estimated_instances = 22
-metadata/_custom_type_script = "uid://rgfomqnhbhpk"
-
-[node name="CSGRepeater3D" type="CSGCombiner3D" parent="." unique_id=873109275]
+[node name="CSGRepeater3D" type="CSGCombiner3D" parent="." unique_id=424598596]
 script = ExtResource("1_mnwru")
-template_node_path = NodePath("../CSGCombiner3D2")
-hide_template = false
-estimated_instances = 201
-pattern = SubResource("Resource_u3rvm")
+pattern = SubResource("Resource_cx0e5")
 randomize_rotation = false
 randomize_rot_x = false
 randomize_rot_y = false
 randomize_rot_z = false
+randomize_position = false
 randomize_scale = false
-scale_variance = 0.15
+scale_variance = 0.0
 randomize_scale_x = false
 randomize_scale_y = false
 randomize_scale_z = false
+template_node_path = NodePath("CSGSpreader3D")
+hide_template = false
 metadata/_custom_type_script = "uid://c68dxahp0v5xg"
+
+[node name="CSGSpreader3D" type="CSGCombiner3D" parent="CSGRepeater3D" unique_id=119637893]
+script = ExtResource("3_fg620")
+area_node_path = NodePath("CollisionShape3D")
+template_node_path = NodePath("CSGBox3D")
+hide_template = false
+metadata/_custom_type_script = "uid://rgfomqnhbhpk"
+
+[node name="CSGBox3D" type="CSGBox3D" parent="CSGRepeater3D/CSGSpreader3D" unique_id=1810511016]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CSGRepeater3D/CSGSpreader3D" unique_id=1954853090]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.43237305, 0, -0.54663086)
+shape = SubResource("BoxShape3D_0e5cg")

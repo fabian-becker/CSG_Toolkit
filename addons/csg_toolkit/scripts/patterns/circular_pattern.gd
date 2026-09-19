@@ -14,8 +14,6 @@ extends CSGPattern
 func _generate(ctx: Dictionary) -> Array[Vector3]:
 	var positions: Array[Vector3] = []
 	var template_size: Vector3 = ctx.get("template_size", Vector3.ONE)
-	var jitter: float = ctx.get("position_jitter", 0.0)
-	var rng: RandomNumberGenerator = ctx.get("rng", null)
 	var rad: float = max(0.0, radius)
 	var count: int = max(1, points)
 	if count <= 1:
@@ -27,14 +25,9 @@ func _generate(ctx: Dictionary) -> Array[Vector3]:
 		var angle: float = (i * TAU) / count
 		var base_pos := Vector3(cos(angle) * rad, 0, sin(angle) * rad)
 		for layer in range(lyr_count):
-			var position := base_pos + Vector3(0, layer * step_y, 0)
-			if jitter > 0.0 and rng != null:
-				position += Vector3(
-					rng.randf_range(-jitter, jitter),
-					rng.randf_range(-jitter, jitter),
-					rng.randf_range(-jitter, jitter)
-				)
-			positions.append(position)
+			# Position jitter (per-axis) is applied by the repeater's variation
+			# system so every pattern type gets it.
+			positions.append(base_pos + Vector3(0, layer * step_y, 0))
 	return positions
 
 

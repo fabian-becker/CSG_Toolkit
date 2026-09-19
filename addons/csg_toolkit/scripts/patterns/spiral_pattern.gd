@@ -5,8 +5,11 @@ extends CSGPattern
 @export var turns: float = 2.0
 @export var start_radius: float = 0.5
 @export var end_radius: float = 5.0
-## If > 0 overrides vertical spread based on repeat & step
+## Vertical spread of the spiral. 0 = flat (all points at y = 0).
 @export var total_height: float = 0.0
+## If true, the template's measured Y size is used as the vertical spread
+## (total_height is ignored). The old implicit fallback, now opt-in.
+@export var use_template_height: bool = false
 @export var use_radius_curve: bool = false
 @export var radius_curve: Curve
 @export var points: int = 32
@@ -15,11 +18,10 @@ extends CSGPattern
 func _generate(ctx: Dictionary) -> Array[Vector3]:
 	var positions: Array[Vector3] = []
 	var template_size: Vector3 = ctx.get("template_size", Vector3.ONE)
-	var jitter: float = ctx.get("position_jitter", 0.0)
-	var rng: RandomNumberGenerator = ctx.get("rng", null)
 	var t_turns: float = max(0.1, turns)
 	var r_start: float = max(0.0, start_radius)
 	var r_end: float = max(r_start, end_radius)
+	var height: float = (template_size.y if use_template_height else max(0.0, total_height))
 	var total: int = max(2, points)
 	if total <= 1:
 		return [Vector3.ZERO]
@@ -29,16 +31,14 @@ func _generate(ctx: Dictionary) -> Array[Vector3]:
 		var curve_t: float = t
 		if use_radius_curve and radius_curve and radius_curve.get_point_count() > 0:
 			curve_t = clamp(radius_curve.sample(t), 0.0, 1.0)
-		var r: float = lerp(r_start, r_end, curve_t)
-		var y_pos: float = t * (total_height if total_height > 0.0 else template_size.y * 1.0)
-		var position := Vector3(cos(angle) * r, y_pos, sin(angle) * r)
-		if jitter > 0.0 and rng != null:
-			position += Vector3(
-				rng.randf_range(-jitter, jitter),
-				rng.randf_range(-jitter, jitter),
-				rng.randf_range(-jitter, jitter)
-			)
-		positions.append(position)
+		# Position jitter (per-axis) is applied by the repeater's variation
+		# system so every pattern type gets it.
+		var radius: float = lerp(r_start, r_end, curve_t)
+		positions.append(Vector3(
+			cos(angle) * radius,
+			t * height,
+			sin(angle) * radius
+		))
 	return positions
 
 

@@ -3,76 +3,74 @@
 </center>
 
 # CSG Toolkit - Enhanced Blockout & Procedural Generation
+
 A powerful Godot plugin that dramatically speeds up your blockout workflow and adds advanced procedural generation capabilities for level design and prototyping.
+
+- Compatible with **Godot 4.7+** (Forward Plus / Mobile / Compatibility)
+- No project settings or autoloads are added to your project — everything lives in Editor Settings
 <br/><a href="https://godotengine.org/asset-library/asset/3057">>> Asset Library </a>
 
 ## Core Features
-* **Quick Access Buttons:** Convenient sidebar buttons for swiftly adding CSG primitives (Box, Sphere, Cylinder, Torus, Mesh, Polygon)
-* **Smart Insertion Modes:** Default sibling/child behavior with ALT key inversion for flexible hierarchy control
-* **Operation Switching:** Quickly cycle through CSG operations (Union, Intersection, Subtraction) with keyboard shortcuts (SHIFT + 1/2/3)
-* **Material Picker:** Visual material preview and quick application to CSG nodes
-* **Keyboard Shortcuts:** Context-aware shortcuts - SHIFT + B/S/C/T/M/P for instant shape creation
-* **Auto-Hide Sidebar:** Optional automatic visibility based on CSG node selection
-* **ProjectSettings Integration:** All configuration stored in Godot's native settings system
+
+* **Quick Access Buttons:** Convenient buttons in the left toolbar for swiftly adding CSG nodes.
+* **Efficient Child Node Addition:** Hold the action key (default `Shift`) to add the new CSG as a child of the selected node; hold the secondary key (default `Alt`) to invert the behavior.
+* **Operation Presets:** Switch between Union / Intersection / Subtraction with the toolbar buttons or `Shift+1/2/3`, cycle with `Shift+'`.
+* **Operation State Visibility:** The active operation is highlighted on the toolbar and persists across editor restarts — as does your last picked material.
+* **Material Picker:** Quickly apply materials to CSG nodes with visual preview.
+* **Per-User Settings:** Action keys, default behavior and auto-hide live in **Editor → Editor Settings → CsgToolkit** (per-user, shared across projects) and are editable from the sidebar's config window.
 
 ## Advanced Procedural Nodes
 
+Both generator nodes share the same architecture (auto-refresh on template/pattern/property edits with debouncing, a live preview, optional freeze-to-mesh for very large generations, hide-able template, and a non-destructive bake).
+
 ### CSGRepeater3D - Pattern Generation System
+
 Create complex repeating patterns with multiple layout options:
 
 **Pattern Types:**
-* **Grid Pattern:** Traditional XYZ grid layout with automatic template size detection and custom spacing
-* **Circular Pattern:** Objects arranged in circles with optional vertical layers  
-* **Spiral Pattern:** Objects follow a configurable spiral path with height and rotation controls
-* **Noise Pattern:** Procedural distribution using FastNoiseLite - creates organic, natural-looking patterns with customizable noise types (Simplex, Perlin, Cellular, etc.)
+* **Grid Pattern:** XYZ grid layout with customizable spacing, optionally based on the template's measured size
+* **Circular Pattern:** Objects arranged in circles with optional vertical layers
+* **Spiral Pattern:** Configurable spiral path with radius curve support (`total_height = 0` gives a flat spiral)
+* **Noise Pattern:** FastNoiseLite-driven placement within 3D bounds
 
 **Advanced Controls:**
-* **Automatic Template Sizing:** Intelligently uses template AABB to calculate proper spacing (toggle with `use_template_size`)
-* **Template Visibility Control:** Hide template node while keeping repeated instances visible with `hide_template` option
-* **Variation Controls:** Per-axis random rotation, scale, and position jitter with configurable variance
-* **Seed-Based Generation:** Fully reproducible random patterns using seeds
-* **Pattern-Specific Settings:** Each pattern type has unique parameters (radius, height, bounds, noise threshold, etc.)
+* **Variation Controls:** Independent per-axis random rotation, scale, and position jitter (each its own toggle group)
+* **Seed-Based Generation:** Reproducible random patterns
+* **Template as Scene:** Use any node, or a `PackedScene` fallback when the path doesn't resolve
 
 ### CSGSpreader3D - Intelligent Object Distribution
-Distribute objects naturally within 3D shapes with smart placement:
 
-**Supported Shapes:**
-* **Box, Sphere, Cylinder, Capsule:** Standard primitive shapes
-* **HeightMap:** Surface-following distribution
-* **Convex/Concave Polygons:** Complex geometry support
-* **World Boundary:** Large area distribution
+Distribute objects within volumes or on scene surfaces with two placement modes:
+
+**Placement Modes:**
+* **Volume:** Scatter inside a movable area node (`CollisionShape3D` or any node containing one) — gizmo-editable and its wireframe is visible in the viewport. Supports Box, Sphere, Cylinder, and Capsule shapes with volume-correct uniform distribution.
+* **Surface:** Raycast instances onto scene geometry (CSG combiners, `MeshInstance3D`). Optional normal alignment, slope filtering (`max_slope_degrees`), overhang detection, and surface offset. Works on plain CSG blockouts without enabling physics collision — meshes are extracted automatically.
 
 **Smart Features:**
-* **Collision Avoidance:** Prevent object overlap with configurable minimum distances and placement attempts
-* **Noise Threshold:** Control density and distribution patterns for organic variation
-* **Advanced Random Distribution:** Mathematically correct uniform distribution in spheres, cylinders, and complex shapes
-* **Rotation & Scale Variations:** Optional randomization for natural-looking distributions
-* **Template Visibility:** Automatic template hiding with visible instances
-* **Runtime Support:** Works both in-editor and during gameplay
+* **Collision Avoidance:** Spatial-hash-accelerated minimum-distance rejection (fast even at thousands of instances)
+* **Density Threshold:** Control spawn probability with a single slider (volume mode)
+* **Variations:** Random yaw/normal-aligned rotation and scaling
+* **Nested Generators:** Use a spreader as a repeater's template — copies stay inert snapshots
 
-### Basic Setup
+## Performance
+
+* **Debounced regeneration:** dragging properties rebuilds once on input settle, not per frame
+* **Freeze-to-mesh:** at/above `freeze_threshold` (default 200) instances the preview collapses into a single mesh — orbit and edit at full speed; unfreeze from the toolbar to go back to live CSG copies
+* **Bake:** commits the current preview into a `Baked_<Generator>` container node under the scene root (fully undoable), so it persists in the scene and the generator stays free to keep previewing. Use *Save Branch as Scene* on the container if you want a standalone `.tscn`.
+
+## Quick Start Guide
+
 1. **Enable the Plugin:** Project Settings > Plugins > CSG Toolkit ✓
-2. **Configure Settings:** Access via sidebar config button or Project > Project Settings > Addons > CSG Toolkit
-3. **Use Quick Creation:** Select a CSG node, hold SHIFT, press B/S/C/T/M/P to create shapes
+2. **Add Nodes:** Create Node > CSGRepeater3D / CSGSpreader3D
+3. **Set Template:** Assign a template node (or scene) to repeat/spread
+4. **Configure:** Choose a pattern / placement mode and adjust parameters — everything refreshes automatically
+5. **Iterate or Commit:** Keep tweaking live, then press **Bake** to commit the current result into the scene
 
-### Using CSGRepeater3D
-1. **Add Repeater:** Create Node > CSGRepeater3D
-2. **Set Template:** Assign a child node path or PackedScene as template
-3. **Choose Pattern:** Create a new pattern resource (GridPattern, CircularPattern, SpiralPattern, or NoisePattern)
-4. **Adjust Settings:** Configure pattern-specific parameters (counts, spacing, radius, etc.)
-5. **Fine-tune:** Enable variations for rotation, scale, or position jitter
-
-### Using CSGSpreader3D
-1. **Add Spreader:** Create Node > CSGSpreader3D
-2. **Set Template:** Assign template node from scene tree
-3. **Define Area:** Set spread_area_3d to a Shape3D resource
-4. **Configure Distribution:** Adjust max_count, noise_threshold, and collision settings
-5. **Add Variation:** Enable rotation/scale randomization for natural lookModifier3D
-3. **Set Template:** Assign a template node or scene to repeat/spread
-4. **Configure Pattern:** Choose pattern type and adjust parameters
+**Top toolbar (visible when a generator is selected):** **Refresh** rebuilds now, **Bake** commits, **Freeze/Unfreeze** toggles the fast mesh preview.
 
 ### Installation Note
-After installing the plugin, reload your project and enable it in Project Settings > Plugins. 
+
+After installing the plugin, reload your project and enable it in Project Settings > Plugins.
 <br />
 <img src="addons/csg_toolkit/res/demo-image.png">
 
