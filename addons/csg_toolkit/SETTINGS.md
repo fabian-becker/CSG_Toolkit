@@ -1,42 +1,41 @@
 # CSG Toolkit Settings
 
-The CSG Toolkit now uses Godot's built-in **ProjectSettings** system instead of a custom configuration file.
+Since **1.8.0**, the CSG Toolkit uses Godot's built-in **Editor Settings** system. Settings are per-user (shared across all your projects), never touch `project.godot`, and never ship in exported games.
 
 ## Accessing Settings
 
 Settings can be accessed in two ways:
 
-1. **Through the CSG Toolkit config window** (recommended for users)
-   - Click the config button in the CSG Toolkit sidebar
-   - Modify settings using the UI
-   - Click "Save" to persist changes
+1. **Through the CSG Toolkit config window** (recommended)
+   - Click the config button at the bottom of the CSG Toolkit sidebar
+   - Rebind keys with a single click-then-press (click again to cancel capture)
+   - Values apply instantly; **Save** closes and confirms
 
-2. **Directly in Project Settings** (for advanced users)
-   - Go to Project → Project Settings
-   - Navigate to the "Addons" section
-   - Look for `addons/csg_toolkit/*` settings
+2. **Directly in Editor Settings** (for advanced users)
+   - Go to **Editor → Editor Settings**
+   - Look for the **CsgToolkit** section
 
 ## Available Settings
 
 | Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `addons/csg_toolkit/default_behavior` | Enum | Sibling | Default insertion behavior (Sibling or Child) |
-| `addons/csg_toolkit/action_key` | Key | Shift | Primary action key for shortcuts |
-| `addons/csg_toolkit/secondary_action_key` | Key | Alt | Secondary action key for behavior inversion |
-| `addons/csg_toolkit/auto_hide` | Boolean | true | Auto-hide sidebar when no CSG nodes selected |
+| ------- | ---- | ------- | ----------- |
+| `csg_toolkit/default_behavior` | Enum | Sibling | Default insertion behavior (Sibling or Child) when creating CSG nodes |
+| `csg_toolkit/action_key` | Key | Shift | Primary action key: hold to add as child + trigger shortcuts |
+| `csg_toolkit/secondary_action_key` | Key | Alt | Secondary key: inverts the primary insertion behavior |
+| `csg_toolkit/auto_hide` | Boolean | true | Auto-hide the sidebar when no CSG nodes are selected |
 
-## Migration from Old Config
+Key bindings are stored as **physical keycodes**, so they work correctly on non-QWERTY layouts.
 
-If you were using an older version with `csg_toolkit_config.cfg`:
-- The old config file is no longer used
-- Settings are now stored in `project.godot`
-- Settings will be initialized with defaults on first run
-- You'll need to reconfigure your preferences if migrating
+## Editor Session State
 
-## Advantages of ProjectSettings
+Per-project editor state (last selected CSG operation and picked material) is stored via `EditorSettings` project metadata. It survives editor restarts but is intentionally not version-controlled and does not affect exported games.
 
-- Settings are version-controlled with your project
-- Visible and editable in Project Settings editor
-- Better integration with Godot's editor
-- No separate config file to manage
-- Settings persist per-project automatically
+## Migration from Older Versions
+
+- **≤ 1.6.x (`csg_toolkit_config.cfg`):** the plugin migrates your old values once on first load and deletes the legacy file automatically.
+- **1.7.x (ProjectSettings):** settings moved to the user-level Editor Settings; re-configure once if you changed the defaults. The old `addons/csg_toolkit/*` ProjectSettings entries are no longer read and can be removed manually.
+
+## Notes
+
+- The plugin adds **no autoload** and mutates **no project files** — enabling/disabling it leaves `project.godot` untouched.
+- Settings persist automatically; there is no explicit save step needed for Editor Settings (the config window's Save button just confirms the values).
