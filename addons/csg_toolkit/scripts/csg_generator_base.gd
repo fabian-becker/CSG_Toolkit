@@ -9,6 +9,8 @@ extends CSGCombiner3D
 ## and variations.
 
 const GENERATOR_NODE_META := "CSG_GENERATOR_INSTANCE_META"
+const BAKED_NODE_META := "CSG_TOOLKIT_BAKED"
+const BAKE_CONTAINER_META := "CSG_TOOLKIT_BAKE_CONTAINER"
 const FROZEN_PREVIEW_META := "CSG_TOOLKIT_FROZEN_PREVIEW"
 const MAX_INSTANCES := 20000
 
@@ -66,6 +68,25 @@ var _template_node_path: NodePath
 
 var _template_node_scene: PackedScene
 
+## Hide the template node in the editor so only the generated instances are
+## visible (the template would otherwise overlap one of the copies).
+var _hide_template: bool = true
+@export var hide_template: bool = true:
+	get: return _hide_template
+	set(value):
+		_hide_template = value
+		_update_template_visibility()
+
+## Generate on runtime _ready (not just in the editor). Useful when scenes
+## containing generators are shipped in exported games.
+var _generate_in_game: bool = false
+@export var generate_in_game: bool = false:
+	get: return _generate_in_game
+	set(value):
+		_generate_in_game = value
+		if not Engine.is_editor_hint():
+			_mark_dirty()
+
 ## At or above this generated instance count the node auto-freezes into a
 ## single baked mesh. Set to 0 to disable auto-freezing.
 @export var freeze_threshold: int = 200
@@ -81,11 +102,16 @@ func _ready():
 	rng = RandomNumberGenerator.new()
 	_setup_generator()
 	_mark_dirty()
+	# Runtime generation (dev feature, preserved): optionally generate once on
+	# ready when running the game. Only when there is no runtime _process loop.
+	if not Engine.is_editor_hint() and _generate_in_game:
+		call_deferred("_run_generation")
 
 
-## True when this node is itself a generated instance of another generator.
+## True when this node is itself a generated instance of another generator
+## (live preview copy) or a committed (baked) instance -- both stay inert.
 func _is_instance_copy() -> bool:
-	return get_meta(GENERATOR_NODE_META, false)
+	return get_meta(GENERATOR_NODE_META, false) or get_meta(BAKED_NODE_META, false)
 
 
 ## Virtual: called once by _ready before the first dirty flush. Subclasses
@@ -116,6 +142,8 @@ func _run_generation() -> void:
 	# after this rebuild (avoids a redundant rebuild on the next poll).
 	_watch_stamp = _compute_watch_stamp()
 	_watch_stamp_seeded = true
+	if _hide_template:
+		_update_template_visibility()
 
 
 ## Virtual: performs the actual generation. Stale instances have already been
@@ -269,6 +297,15 @@ func _get_template_node() -> Node:
 	return null
 
 
+## Shows/hides the resolved template node (hide_template feature).
+func _update_template_visibility():
+	if not is_inside_tree():
+		return
+	var template_node := get_node_or_null(template_node_path)
+	if template_node and template_node is Node3D:
+		(template_node as Node3D).visible = not _hide_template
+
+
 ## Releases a temporarily added template scene instance (if any).
 func _release_template_instance():
 	if _pending_template_instance and is_instance_valid(_pending_template_instance):
@@ -363,14 +400,24 @@ func _make_instance(template_node: Node, position: Vector3) -> Node:
 	if instance == null:
 		return null
 	instance.set_meta(GENERATOR_NODE_META, true)
+	# The template may be hidden (hide_template) and duplicate() copies that
+	# state -- generated instances must always be visible.
+	if instance is Node3D:
+		(instance as Node3D).visible = true
 	instance.transform.origin = position
 	add_child(instance)
 	return instance
 
 
-## Bakes generated instances into the scene by assigning the scene owner,
-## wrapped in the editor undo/redo history so it can be undone. Frozen previews
-## are unfrozen first so the real CSG children get baked, not the proxy mesh.
+## Commits generated instances by MOVING them into a new container node
+## ("Baked_<Generator>") under the edited scene root -- keeps the generator
+## itself uncluttered and stops preview/regeneration from touching baked
+## content. Every node in the moved subtrees gets the scene owner assigned
+## (Godot only serializes owned nodes) so everything persists after save &
+## reopen, and instances are untagged as previews. Fully undoable.
+## Tip: right-click the container -> "Save Branch as Scene" to also get a
+## reusable .tscn. Frozen previews are unfrozen first so the real CSG
+## children get baked, not the proxy mesh.
 func bake_instances():
 	if _frozen:
 		_unfreeze(false)
@@ -381,27 +428,86 @@ func bake_instances():
 	if instances.is_empty():
 		return
 
-	var scene_owner := owner
+	var scene_root := owner
+	if scene_root == null:
+		scene_root = get_tree().edited_scene_root
+	if scene_root == null:
+		push_warning("CSG Toolkit: Cannot bake -- no edited scene root found.")
+		return
+
 	var undo: EditorUndoRedoManager = CsgToolkit.undo_manager
 	if undo:
 		undo.create_action("Bake %s instances (%s)" % [instances.size(), get_class()])
-		undo.add_do_method(self, "_bake_set_owners", instances, scene_owner)
-		undo.add_undo_method(self, "_bake_clear_owners", instances)
+		undo.add_do_method(self, "_bake_commit", instances, scene_root)
+		undo.add_undo_method(self, "_bake_revert", instances, scene_root)
 		undo.commit_action()
 	else:
-		_bake_set_owners(instances, scene_owner)
+		_bake_commit(instances, scene_root)
 
 
-func _bake_set_owners(instances: Array, scene_owner: Node) -> void:
-	for node in instances:
-		if is_instance_valid(node):
-			node.owner = scene_owner
+## Do: create the container, move instances into it (global transforms kept),
+## assign owners down the whole subtree and tag as baked.
+func _bake_commit(instances: Array, scene_root: Node) -> void:
+	var container := Node3D.new()
+	container.name = _unique_bake_container_name(scene_root)
+	scene_root.add_child(container)
+	container.owner = scene_root
+	set_meta(BAKE_CONTAINER_META, container)
+	for root in instances:
+		if not is_instance_valid(root):
+			continue
+		var keep_global: Transform3D = (root as Node3D).global_transform if root is Node3D else Transform3D.IDENTITY
+		remove_child(root)
+		container.add_child(root)
+		if root is Node3D:
+			(root as Node3D).global_transform = keep_global
+		var stack: Array = [root]
+		while not stack.is_empty():
+			var node: Node = stack.pop_back()
+			node.owner = scene_root
+			node.set_meta(BAKED_NODE_META, true)
+			for child in node.get_children():
+				stack.append(child)
+		root.remove_meta(GENERATOR_NODE_META)
 
 
-func _bake_clear_owners(instances: Array) -> void:
-	for node in instances:
-		if is_instance_valid(node):
+## Undo: move instances back under the generator, restore preview state
+## (owners cleared, preview tag restored) and dispose the bake container.
+func _bake_revert(instances: Array, scene_root: Node) -> void:
+	for root in instances:
+		if not is_instance_valid(root):
+			continue
+		var keep_global: Transform3D = (root as Node3D).global_transform if root is Node3D else Transform3D.IDENTITY
+		var old_parent: Node = root.get_parent()
+		if old_parent:
+			old_parent.remove_child(root)
+		add_child(root)
+		if root is Node3D:
+			(root as Node3D).global_transform = keep_global
+		var stack: Array = [root]
+		while not stack.is_empty():
+			var node: Node = stack.pop_back()
 			node.owner = null
+			node.remove_meta(BAKED_NODE_META)
+			for child in node.get_children():
+				stack.append(child)
+		root.set_meta(GENERATOR_NODE_META, true)
+	var container: Node = get_meta(BAKE_CONTAINER_META, null)
+	if container and container.get_child_count() == 0:
+		container.get_parent().remove_child(container)
+		container.queue_free()
+	remove_meta(BAKE_CONTAINER_META)
+
+
+## Collision-free name for the bake container under the scene root.
+func _unique_bake_container_name(scene_root: Node) -> String:
+	var base := "Baked_" + String(name).replace(".", "_")
+	var candidate := base
+	var i := 2
+	while scene_root.has_node(NodePath(candidate)):
+		candidate = "%s_%d" % [base, i]
+		i += 1
+	return candidate
 
 
 ## Backward-compatible alias for older tooling.

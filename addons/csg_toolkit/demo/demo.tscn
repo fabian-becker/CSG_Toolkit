@@ -19,11 +19,9 @@ glow_enabled = true
 
 [sub_resource type="Resource" id="Resource_cx0e5"]
 script = ExtResource("2_fg620")
-turns = 1.0
-start_radius = 0.1
-end_radius = 8.0
-use_template_height = null
-points = 16
+start_radius = 5.0
+total_height = 1.0
+points = 12
 metadata/_custom_type_script = "uid://belgcjd0ys212"
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_0e5cg"]
@@ -47,23 +45,23 @@ script = ExtResource("1_mnwru")
 pattern = SubResource("Resource_cx0e5")
 randomize_rotation = false
 randomize_rot_x = false
-randomize_rot_y = true
+randomize_rot_y = false
 randomize_rot_z = false
 randomize_position = false
 randomize_scale = false
-scale_variance = 0.1
+scale_variance = 0.0
 randomize_scale_x = false
 randomize_scale_y = false
 randomize_scale_z = false
 template_node_path = NodePath("CSGSpreader3D")
+hide_template = false
 metadata/_custom_type_script = "uid://c68dxahp0v5xg"
 
 [node name="CSGSpreader3D" type="CSGCombiner3D" parent="CSGRepeater3D" unique_id=119637893]
 script = ExtResource("3_fg620")
 area_node_path = NodePath("CollisionShape3D")
-max_count = 4
-noise_threshold = 0.2
 template_node_path = NodePath("CSGBox3D")
+hide_template = false
 metadata/_custom_type_script = "uid://rgfomqnhbhpk"
 
 [node name="CSGBox3D" type="CSGBox3D" parent="CSGRepeater3D/CSGSpreader3D" unique_id=1810511016]
