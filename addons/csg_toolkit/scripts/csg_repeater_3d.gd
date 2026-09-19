@@ -131,11 +131,21 @@ var randomize_scale_z: bool:
 		if _randomize_scale: _mark_dirty()
 		notify_property_list_changed()
 
-var _position_jitter: float = 0.0
-@export var position_jitter: float = 0.0:
+## Position jitter variation (per-axis, managed via custom property list).
+var _randomize_position: bool = false
+var randomize_position: bool:
+	get: return _randomize_position
+	set(value):
+		_randomize_position = value
+		_mark_dirty()
+		notify_property_list_changed()
+
+## Per-axis maximum random offset applied to each instance position.
+var _position_jitter: Vector3 = Vector3.ZERO
+var position_jitter: Vector3:
 	get: return _position_jitter
 	set(value):
-		_position_jitter = max(0.0, value)
+		_position_jitter = Vector3(maxf(0.0, value.x), maxf(0.0, value.y), maxf(0.0, value.z))
 		_mark_dirty()
 
 var _random_seed: int = 0
@@ -176,8 +186,15 @@ func _setup_generator() -> void:
 		pattern = CSGGridPattern.new()
 
 func _on_pattern_changed():
-	# Called when the assigned pattern resource's exported properties are edited in inspector.
+	# Only fires for resources that explicitly emit_changed(); plain scripted
+	# patterns do not on inspector edits. The dependency watcher covers those.
 	_mark_dirty()
+
+
+## The pattern resource is a generation input. Plain scripted resources don't
+## emit Resource.changed on inspector edits, so it's fingerprinted here.
+func _compute_dependency_stamp() -> int:
+	return _resource_stamp(pattern)
 
 func _generate_instances():
 	var template_node = _get_template_node()
@@ -189,7 +206,7 @@ func _generate_instances():
 	var template_size := _get_template_size(template_node)
 	var estimate := 0
 	if pattern:
-		estimate = pattern.get_estimated_count({"template_size": template_size, "rng": rng, "position_jitter": _position_jitter})
+		estimate = pattern.get_estimated_count({"template_size": template_size, "rng": rng})
 	if estimate > MAX_INSTANCES:
 		push_warning("CSGRepeater3D: Estimated count %s exceeds cap %s. Aborting generation." % [estimate, MAX_INSTANCES])
 		if using_scene:
@@ -219,7 +236,7 @@ func _instance_positions(template_node: Node, template_size: Vector3) -> Array:
 	if pattern == null:
 		return result
 	var template_origin: Vector3 = (template_node as Node3D).transform.origin if template_node is Node3D else Vector3.ZERO
-	var ctx: Dictionary = {"template_size": template_size, "rng": rng, "position_jitter": _position_jitter}
+	var ctx: Dictionary = {"template_size": template_size, "rng": rng}
 	for position in pattern.generate(ctx):
 		if position == template_origin:
 			continue
@@ -228,6 +245,13 @@ func _instance_positions(template_node: Node, template_size: Vector3) -> Array:
 
 
 func _apply_variations(instance: Node3D):
+	# Position jitter: independent per-axis random offset around the pattern
+	# position (applied here so every pattern type gets it, not just grid).
+	if _randomize_position:
+		instance.transform.origin += Vector3(
+			rng.randf_range(-_position_jitter.x, _position_jitter.x),
+			rng.randf_range(-_position_jitter.y, _position_jitter.y),
+			rng.randf_range(-_position_jitter.z, _position_jitter.z))
 	if _randomize_rotation:
 		var final_rot := instance.rotation
 		if _randomize_rot_x:
@@ -329,6 +353,23 @@ func _get_property_list() -> Array[Dictionary]:
 	# Subgroup for locked rotations (should reside inside Rotation Randomization group)
 	# (Locked rotations removed as per user request)
 
+	# Position jitter subgroup under Variation Options
+	props.append({
+		"name": "Position Jitter",
+		"type": TYPE_NIL,
+		"usage": PROPERTY_USAGE_SUBGROUP
+	})
+	props.append({
+		"name": "randomize_position",
+		"type": TYPE_BOOL,
+		"usage": PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR,
+		"hint": PROPERTY_HINT_GROUP_ENABLE
+	})
+	if _randomize_position:
+		props.append(_prop_float_range("position_jitter_x", "0,1000,0.01"))
+		props.append(_prop_float_range("position_jitter_y", "0,1000,0.01"))
+		props.append(_prop_float_range("position_jitter_z", "0,1000,0.01"))
+
 	# Scale variation subgroup under Variation Options
 	props.append({
 		"name": "Scale Variation",
@@ -371,11 +412,37 @@ func _prop_float_range(name: String, hint_str: String) -> Dictionary:
 	}
 
 
+## Maps the synthetic per-axis jitter properties onto the Vector3 backing var.
+func _get(property: StringName) -> Variant:
+	match String(property):
+		"position_jitter_x": return _position_jitter.x
+		"position_jitter_y": return _position_jitter.y
+		"position_jitter_z": return _position_jitter.z
+	return null
+
+
+func _set(property: StringName, value: Variant) -> bool:
+	match String(property):
+		"position_jitter_x":
+			_position_jitter.x = maxf(0.0, value)
+			_mark_dirty()
+			return true
+		"position_jitter_y":
+			_position_jitter.y = maxf(0.0, value)
+			_mark_dirty()
+			return true
+		"position_jitter_z":
+			_position_jitter.z = maxf(0.0, value)
+			_mark_dirty()
+			return true
+	return false
+
+
 ## Instance count excluding any position that would land on the template origin.
 func get_instance_count() -> int:
 	if pattern == null:
 		return 0
-	var ctx := {"template_size": Vector3.ONE, "rng": rng, "position_jitter": _position_jitter}
+	var ctx := {"template_size": Vector3.ONE, "rng": rng}
 	var count := 0
 	for position in pattern.generate(ctx):
 		if not position.is_zero_approx():

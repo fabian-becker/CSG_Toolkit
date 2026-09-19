@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bltlelosbn4ky"]
 
 [ext_resource type="Script" uid="uid://c68dxahp0v5xg" path="res://addons/csg_toolkit/scripts/csg_repeater_3d.gd" id="1_mnwru"]
-[ext_resource type="Script" uid="uid://bc1sxg4vy464o" path="res://addons/csg_toolkit/scripts/patterns/grid_pattern.gd" id="2_mnwru"]
+[ext_resource type="Script" uid="uid://belgcjd0ys212" path="res://addons/csg_toolkit/scripts/patterns/spiral_pattern.gd" id="2_fg620"]
 [ext_resource type="Script" uid="uid://rgfomqnhbhpk" path="res://addons/csg_toolkit/scripts/csg_spreader_3d.gd" id="3_fg620"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_i7qq0"]
@@ -17,13 +17,17 @@ sky = SubResource("Sky_lhy2n")
 tonemap_mode = 2
 glow_enabled = true
 
-[sub_resource type="Resource" id="Resource_mnwru"]
-script = ExtResource("2_mnwru")
-count_x = 10
-count_z = 10
-spacing = Vector3(1, 0, 1)
+[sub_resource type="Resource" id="Resource_cx0e5"]
+script = ExtResource("2_fg620")
+turns = 1.0
+start_radius = 0.1
+end_radius = 8.0
+use_template_height = null
+points = 16
+metadata/_custom_type_script = "uid://belgcjd0ys212"
 
-[sub_resource type="SphereShape3D" id="SphereShape3D_0e5cg"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_0e5cg"]
+size = Vector3(1.8647461, 1, 2.0932617)
 
 [node name="Node" type="Node3D" unique_id=1982297888]
 
@@ -38,26 +42,32 @@ shadow_enabled = true
 transform = Transform3D(-0.9318623, 0, -0.36281213, 0, 1, 0, 0.36281213, 0, -0.9318623, 1.3680165, 1.0718846, -2.9172351)
 current = true
 
-[node name="CSGRepeater3D" type="CSGCombiner3D" parent="." unique_id=1016903630]
+[node name="CSGRepeater3D" type="CSGCombiner3D" parent="." unique_id=424598596]
 script = ExtResource("1_mnwru")
-pattern = SubResource("Resource_mnwru")
-randomize_rotation = true
+pattern = SubResource("Resource_cx0e5")
+randomize_rotation = false
 randomize_rot_x = false
-randomize_rot_y = false
+randomize_rot_y = true
 randomize_rot_z = false
-randomize_scale = true
-scale_variance = 0.0
+randomize_position = false
+randomize_scale = false
+scale_variance = 0.1
 randomize_scale_x = false
 randomize_scale_y = false
 randomize_scale_z = false
 template_node_path = NodePath("CSGSpreader3D")
 metadata/_custom_type_script = "uid://c68dxahp0v5xg"
 
-[node name="CSGSpreader3D" type="CSGCombiner3D" parent="CSGRepeater3D" unique_id=1185074002]
+[node name="CSGSpreader3D" type="CSGCombiner3D" parent="CSGRepeater3D" unique_id=119637893]
 script = ExtResource("3_fg620")
-spread_area_3d = SubResource("SphereShape3D_0e5cg")
-max_count = 12
+area_node_path = NodePath("CollisionShape3D")
+max_count = 4
+noise_threshold = 0.2
 template_node_path = NodePath("CSGBox3D")
 metadata/_custom_type_script = "uid://rgfomqnhbhpk"
 
-[node name="CSGBox3D" type="CSGBox3D" parent="CSGRepeater3D/CSGSpreader3D" unique_id=151769260]
+[node name="CSGBox3D" type="CSGBox3D" parent="CSGRepeater3D/CSGSpreader3D" unique_id=1810511016]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CSGRepeater3D/CSGSpreader3D" unique_id=1954853090]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.43237305, 0, -0.54663086)
+shape = SubResource("BoxShape3D_0e5cg")

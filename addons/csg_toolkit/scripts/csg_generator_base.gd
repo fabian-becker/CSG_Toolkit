@@ -17,9 +17,22 @@ const MAX_INSTANCES := 20000
 ## per frame.
 const REGEN_DEBOUNCE_MS := 250
 
+## How often the template subtree fingerprint is polled (template watching).
+const TEMPLATE_POLL_INTERVAL_MS := 100
+## Safety cap for the template fingerprint walk on very large templates.
+const MAX_TEMPLATE_STAMP_NODES := 4096
+
 var _dirty: bool = false
 var _dirty_at_ms: int = 0
 var _generation_in_progress := false
+
+## Monotonic counter bumped after every generation. A parent generator that
+## uses this node as its template watches this (via the fingerprint) to
+## auto-regenerate when this node regenerates.
+var generation_id: int = 0
+var _watch_stamp := 0
+var _watch_checked_at_ms := 0
+var _watch_stamp_seeded := false
 var _pending_template_instance: Node = null
 var rng: RandomNumberGenerator
 
@@ -59,9 +72,20 @@ var _template_node_scene: PackedScene
 
 
 func _ready():
+	if _is_instance_copy():
+		# This node is a preview duplicate owned by another generator (e.g. a
+		# spreader repeated by a repeater). It must stay inert: no RNG, no
+		# default setup, no generation. Otherwise every duplicate runs its own
+		# generation loop, producing a recursive second "phase" of instances.
+		return
 	rng = RandomNumberGenerator.new()
 	_setup_generator()
 	_mark_dirty()
+
+
+## True when this node is itself a generated instance of another generator.
+func _is_instance_copy() -> bool:
+	return get_meta(GENERATOR_NODE_META, false)
 
 
 ## Virtual: called once by _ready before the first dirty flush. Subclasses
@@ -87,6 +111,11 @@ func _run_generation() -> void:
 		# Capture one frame later, after the engine's deferred CSG bake has
 		# produced the updated combiner mesh.
 		_freeze_pending = true
+	generation_id += 1
+	# Snapshot the watched state so the watcher only fires on real changes
+	# after this rebuild (avoids a redundant rebuild on the next poll).
+	_watch_stamp = _compute_watch_stamp()
+	_watch_stamp_seeded = true
 
 
 ## Virtual: performs the actual generation. Stale instances have already been
@@ -96,11 +125,17 @@ func _generate_instances() -> void:
 
 
 func _process(_delta):
-	if not Engine.is_editor_hint():
+	if not Engine.is_editor_hint() or _is_instance_copy():
 		return
 	if _freeze_pending and not _dirty and not _generation_in_progress:
 		_apply_freeze()
 		return
+	# Dependency watcher: auto-regenerate when the template subtree or any
+	# subclass dependency (e.g. the spreader's area node) changed.
+	if not _dirty and not _generation_in_progress \
+			and Time.get_ticks_msec() - _watch_checked_at_ms >= TEMPLATE_POLL_INTERVAL_MS:
+		_watch_checked_at_ms = Time.get_ticks_msec()
+		_check_watch_stamp()
 	if _dirty and not _generation_in_progress:
 		# Debounce: property drags re-mark every frame; only rebuild once the
 		# input has settled for REGEN_DEBOUNCE_MS.
@@ -240,6 +275,86 @@ func _release_template_instance():
 		remove_child(_pending_template_instance)
 		_pending_template_instance.queue_free()
 	_pending_template_instance = null
+
+
+# -- Dependency watching ---------------------------------------------------------------
+
+## Called from _process (throttled): regenerates when a watched dependency
+## changed since the last generation (template subtree, subclass inputs).
+func _check_watch_stamp():
+	if not _watch_stamp_seeded:
+		# First observation seeds the baseline instead of triggering a
+		# redundant rebuild right after scene load.
+		_watch_stamp = _compute_watch_stamp()
+		_watch_stamp_seeded = true
+		return
+	var stamp := _compute_watch_stamp()
+	if stamp != _watch_stamp:
+		_watch_stamp = stamp
+		_mark_dirty()
+
+
+## Combined fingerprint of everything watched between generations.
+func _compute_watch_stamp() -> int:
+	return hash([_compute_template_stamp(), _compute_dependency_stamp()])
+
+
+## Virtual: subclasses fingerprint their own generation inputs here (the
+## spreader watches its area node and explicit surface targets). Return 0
+## when there is nothing extra to watch.
+func _compute_dependency_stamp() -> int:
+	return 0
+
+
+## Generic fingerprint of a Resource's state: instance id (resource swap) plus
+## every editor-visible property value. Needed because plain scripted resources
+## do NOT emit Resource.changed on inspector edits (only on explicit
+## emit_changed), so signal-based invalidation silently misses them.
+## Called from the throttled watcher only, so cost is negligible.
+func _resource_stamp(res: Resource) -> int:
+	if res == null:
+		return 0
+	var parts: Array = [res.get_instance_id()]
+	for prop in res.get_property_list():
+		if prop["usage"] & PROPERTY_USAGE_EDITOR == 0:
+			continue
+		var prop_name: String = prop["name"]
+		if prop_name.begins_with("metadata/") or prop_name == "script":
+			continue
+		parts.append(res.get(prop_name))
+	return hash(parts)
+
+
+## Lightweight fingerprint of the template subtree: instance ids (structure),
+## local transforms (move/rotate/scale) and visual AABBs (shape resizes).
+## Generator templates also contribute their generation_id, so an inner
+## generator's regeneration is detected even with identical-looking children.
+func _compute_template_stamp() -> int:
+	var template_node := get_node_or_null(template_node_path)
+	if template_node == null or template_node.has_meta(GENERATOR_NODE_META):
+		# Nothing to watch, or pathological self-reference (template is one of
+		# our own generated copies) -- watching that would loop forever.
+		return 0
+	var parts: Array = []
+	if template_node is CsgGeneratorBase:
+		parts.append((template_node as CsgGeneratorBase).generation_id)
+	var stack: Array = [template_node]
+	var visited := 0
+	while not stack.is_empty() and visited < MAX_TEMPLATE_STAMP_NODES:
+		visited += 1
+		var current: Node = stack.pop_back()
+		parts.append(current.get_instance_id())
+		if current is Node3D:
+			var xf := (current as Node3D).transform
+			parts.append(xf.origin)
+			parts.append(xf.basis.x)
+			parts.append(xf.basis.y)
+			parts.append(xf.basis.z)
+			if current is VisualInstance3D:
+				parts.append((current as VisualInstance3D).get_aabb())
+		for child in current.get_children():
+			stack.append(child)
+	return hash(parts)
 
 
 ## Duplicates the template and tags/positions it as a generated instance.

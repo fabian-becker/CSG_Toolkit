@@ -29,20 +29,16 @@ Create complex repeating patterns with multiple layout options:
 * **Seed-Based Generation:** Reproducible random patterns
 
 ### CSGSpreader3D - Intelligent Object Distribution
-Distribute objects naturally within 3D shapes with smart placement:
+Distribute objects within volumes or on scene surfaces with two placement modes:
 
-**Supported Shapes:**
-* **Box, Sphere, Cylinder, Capsule:** Standard primitive shapes
-* **HeightMap:** Surface-following distribution
-* **Convex/Concave Polygons:** Complex geometry support
-* **World Boundary:** Large area distribution
+**Placement Modes:**
+* **Volume:** Scatter inside a movable area node (`CollisionShape3D` or any node containing one) -- gizmo-editable and visible in the viewport. Supports Box, Sphere, Cylinder, and Capsule shapes with mathematically correct uniform distribution.
+* **Surface:** Raycast instances onto scene geometry (CSG, MeshInstance3D). Optional normal alignment, slope filtering, overhang detection, and surface offset. Works without physics collision via automatic mesh extraction.
 
 **Smart Features:**
-* **Collision Avoidance:** Prevent object overlap with configurable minimum distances
-* **Density Threshold:** Control spawn probability with a single slider
-* **Surface Snapping:** Optional `snap_distance` pushes instances onto the shape's surface shell
-* **Advanced Random Distribution:** Mathematically correct uniform distribution
-* **Material Variations:** Random materials and scaling options
+* **Collision Avoidance:** Spatial-hash-accelerated minimum-distance rejection (fast even at thousands of instances)
+* **Density Threshold:** Control spawn probability with a single slider (volume mode)
+* **Material Variations:** Random rotation, scaling options
 
 ## Quick Start Guide
 
