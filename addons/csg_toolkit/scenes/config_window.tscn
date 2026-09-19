@@ -8,7 +8,7 @@
 
 [node name="ConfigWindow" type="Window"]
 oversampling_override = 1.0
-title = "CSG Toolit Configuration"
+title = "CSG Toolkit Configuration"
 initial_position = 1
 size = Vector2i(480, 360)
 popup_window = true

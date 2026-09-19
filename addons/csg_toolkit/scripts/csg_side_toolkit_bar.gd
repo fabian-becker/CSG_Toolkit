@@ -1,21 +1,33 @@
 @tool
 class_name CSGSideToolkitBar extends Control
 
-@onready var config: CsgTkConfig:
-	get:
-		return get_tree().root.get_node_or_null(CsgToolkit.AUTOLOAD_NAME) as CsgTkConfig
+@onready var config: CsgTkConfig = CsgTkConfig.instance()
 
 var operation: CSGShape3D.Operation = CSGShape3D.OPERATION_UNION
 var selected_material: BaseMaterial3D
 var selected_shader: ShaderMaterial
 
 @onready var picker_button: Button = $ScrollContainer/HBoxContainer/Material/MaterialPicker
+@onready var op_buttons: Array[Button] = [
+	$ScrollContainer/HBoxContainer/Operation/Union,
+	$ScrollContainer/HBoxContainer/Operation/Intersection,
+	$ScrollContainer/HBoxContainer/Operation/Subtraction,
+]
 
 func _enter_tree():
 	EditorInterface.get_selection().selection_changed.connect(_on_selection_changed)
+	_load_editor_state()
+	_update_operation_buttons()
 
 func _exit_tree():
 	EditorInterface.get_selection().selection_changed.disconnect(_on_selection_changed)
+	_save_editor_state()
+
+func _ready():
+	picker_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Connect material picker button if not connected via scene
+	if not picker_button.pressed.is_connected(_on_material_picker_pressed):
+		picker_button.pressed.connect(_on_material_picker_pressed)
 
 func _on_selection_changed():
 	if not config.auto_hide:
@@ -25,42 +37,6 @@ func _on_selection_changed():
 		show()
 	else:
 		hide()
-
-func _ready():
-	picker_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	# Connect material picker button if not connected via scene
-	if not picker_button.pressed.is_connected(_on_material_picker_pressed):
-		picker_button.pressed.connect(_on_material_picker_pressed)
-	set_process_unhandled_key_input(true)
-
-func _unhandled_key_input(event: InputEvent):
-	# Shortcut: action_key + 1/2/3 to set operation (Union / Intersection / Subtraction)
-	if not (event is InputEventKey):
-		return
-	var ev := event as InputEventKey
-	if ev.pressed and not ev.echo:
-		# Ensure action key is held (config.action_key)
-		if Input.is_key_pressed(config.action_key):
-			match ev.physical_keycode:
-				KEY_1, KEY_KP_1:
-					set_operation(0)
-					_accept_shortcut_feedback("Union")
-				KEY_2, KEY_KP_2:
-					set_operation(1)
-					_accept_shortcut_feedback("Intersection")
-				KEY_3, KEY_KP_3:
-					set_operation(2)
-					_accept_shortcut_feedback("Subtraction")
-
-func _accept_shortcut_feedback(label: String):
-	# Provide lightweight visual/editor feedback. Avoid static call to non-existent get_status_bar in Godot 4.
-	# Fallback: print to output.
-	var ei = EditorInterface
-	if ei:
-		# Some editor builds expose status bar via base control's children - skip deep search for now.
-		print("CSG Operation: %s" % label)
-	else:
-		print("CSG Operation: %s" % label)
 
 func _on_box_pressed():
 	create_csg(CSGBox3D)
@@ -99,7 +75,9 @@ func _request_material():
 	dialog.display_mode = EditorFileDialog.DISPLAY_LIST
 	dialog.filters = ["*.tres, *.material, *.res"]
 	dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
-	dialog.position = ((EditorInterface.get_base_control().size / 2) as Vector2i) - dialog.size
+	var base_control := EditorInterface.get_base_control()
+	# Center the dialog over the editor (both halves halved).
+	dialog.position = ((base_control.size - dialog.size) / 2.0) as Vector2i
 	dialog.close_requested.connect(func ():
 		get_tree().root.remove_child(dialog)
 		dialog.queue_free()
@@ -116,6 +94,7 @@ func _request_material():
 		update_shader(res)
 	else:
 		return
+	_save_editor_state()
 	var previewer = EditorInterface.get_resource_previewer()
 	previewer.queue_edited_resource_preview(res, self, "_update_picker_icon", null)
 
@@ -123,12 +102,21 @@ func _update_picker_icon(path, preview, thumbnail, userdata):
 	if preview:
 		picker_button.icon = preview
 
+## Human-readable label for the current operation (shared with shortcuts).
+func get_operation_label() -> String:
+	match operation:
+		CSGShape3D.OPERATION_UNION: return "Union"
+		CSGShape3D.OPERATION_INTERSECTION: return "Intersection"
+		CSGShape3D.OPERATION_SUBTRACTION: return "Subtraction"
+		_: return str(operation)
+
 func set_operation(val: int):
 	match val:
-		0: operation = CSGShape3D.OPERATION_UNION
-		1: operation = CSGShape3D.OPERATION_INTERSECTION
-		2: operation = CSGShape3D.OPERATION_SUBTRACTION
+		CSGShape3D.OPERATION_UNION: operation = CSGShape3D.OPERATION_UNION
+		CSGShape3D.OPERATION_INTERSECTION: operation = CSGShape3D.OPERATION_INTERSECTION
+		CSGShape3D.OPERATION_SUBTRACTION: operation = CSGShape3D.OPERATION_SUBTRACTION
 		_: operation = CSGShape3D.OPERATION_UNION
+	_update_operation_buttons()
 
 func update_material(material: BaseMaterial3D):
 	selected_material = material
@@ -137,6 +125,12 @@ func update_material(material: BaseMaterial3D):
 func update_shader(shader: ShaderMaterial):
 	selected_material = null
 	selected_shader = shader
+
+## Reflects the active operation on the toolbar's toggle buttons.
+func _update_operation_buttons():
+	for i in op_buttons.size():
+		if op_buttons[i]:
+			op_buttons[i].button_pressed = (operation == i)
 
 func create_csg(type: Variant):
 	var selection = EditorInterface.get_selection()
@@ -177,6 +171,8 @@ func create_csg(type: Variant):
 	if parent == null:
 		return
 
+	_save_editor_state()
+
 	# Try undo manager path if plugin provided one
 	if CsgToolkit.undo_manager:
 		var insert_index := parent.get_child_count()
@@ -193,9 +189,6 @@ func create_csg(type: Variant):
 		csg.owner = selected_node.get_owner()
 		csg.global_position = selected_node.global_position
 		call_deferred("_select_created_csg", csg)
-
-func _deferred_select(csg: Node):
-	call_deferred("_select_created_csg", csg)
 
 func _undoable_add_csg(parent: Node, csg: CSGShape3D, owner_ref: Node, global_pos: Vector3, insert_index: int):
 	if csg.get_parent() != parent:
@@ -222,15 +215,38 @@ func _select_created_csg(csg: Node):
 	selection.clear()
 	selection.add_node(csg)
 
-func _add_as_child(selected_node: CSGShape3D, csg: CSGShape3D):
-	selected_node.add_child(csg, true)
-	csg.owner = selected_node.get_owner()
-	csg.global_position = selected_node.global_position
-
-func _add_as_sibling(selected_node: CSGShape3D, csg: CSGShape3D):
-	selected_node.get_parent().add_child(csg, true)
-	csg.owner = selected_node.get_owner()
-	csg.global_position = selected_node.global_position
-
 func _on_material_picker_pressed() -> void:
 	_request_material()
+
+# -- Session persistence (operation + picked material survive plugin reloads).
+# Uses the official EditorSettings project metadata (stored outside the project
+# folder, per project, no files to manage).
+
+const META_OPERATION = "editor_state/operation"
+const META_MATERIAL = "editor_state/material"
+
+func _save_editor_state():
+	var settings := EditorInterface.get_editor_settings()
+	settings.set_project_metadata("csg_toolkit", "operation", operation)
+	var material_path := ""
+	if selected_material:
+		material_path = selected_material.resource_path
+	elif selected_shader:
+		material_path = selected_shader.resource_path
+	settings.set_project_metadata("csg_toolkit", "material", material_path)
+
+func _load_editor_state():
+	var settings := EditorInterface.get_editor_settings()
+	set_operation(int(settings.get_project_metadata("csg_toolkit", "operation", operation)))
+	var material_path: String = settings.get_project_metadata("csg_toolkit", "material", "")
+	if material_path.is_empty():
+		return
+	var res = ResourceLoader.load(material_path)
+	if res == null:
+		return
+	if res is BaseMaterial3D:
+		update_material(res)
+	elif res is ShaderMaterial:
+		update_shader(res)
+	var previewer = EditorInterface.get_resource_previewer()
+	previewer.queue_edited_resource_preview(res, self, "_update_picker_icon", null)

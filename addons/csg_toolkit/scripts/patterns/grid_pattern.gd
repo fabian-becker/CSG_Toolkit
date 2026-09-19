@@ -13,7 +13,6 @@ extends CSGPattern
 func _generate(ctx: Dictionary) -> Array:
 	var positions: Array = []
 	var template_size: Vector3 = ctx.get("template_size", Vector3.ONE)
-	var jitter: float = ctx.get("position_jitter", 0.0)
 	var rng: RandomNumberGenerator = ctx.rng
 	var cx = max(1, count_x)
 	var cy = max(1, count_y)
@@ -22,12 +21,5 @@ func _generate(ctx: Dictionary) -> Array:
 	for x in range(cx):
 		for y in range(cy):
 			for z in range(cz):
-				var position = Vector3(x * base_step.x, y * base_step.y, z * base_step.z)
-				if jitter > 0.0:
-					position += Vector3(
-						rng.randf_range(-jitter, jitter),
-						rng.randf_range(-jitter, jitter),
-						rng.randf_range(-jitter, jitter)
-					)
-				positions.append(position)
+				positions.append(Vector3(x * base_step.x, y * base_step.y, z * base_step.z))
 	return positions
