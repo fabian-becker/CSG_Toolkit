@@ -1,17 +1,5 @@
 @tool
-class_name CSGSpreader3D extends CSGCombiner3D
-
-const SPREADER_NODE_META = "SPREADER_NODE_META"
-const MAX_INSTANCES = 20000
-
-var _dirty: bool = false
-var _generation_in_progress := false
-var _template_node_path: NodePath
-@export var template_node_path: NodePath:
-	get: return _template_node_path
-	set(value):
-		_template_node_path = value
-		_mark_dirty()
+class_name CSGSpreader3D extends CsgGeneratorBase
 
 var _spread_area_3d: Shape3D = null
 @export var spread_area_3d: Shape3D = null:
@@ -28,6 +16,9 @@ var _max_count: int = 10
 		_mark_dirty()
 
 @export_group("Spread Options")
+## Probability gate for spawning an instance (acts as a density control).
+## (The unrelated capsule hemisphere use was removed -- capsule sampling no
+## longer branches on it.)
 var _noise_threshold: float = 0.5
 @export var noise_threshold: float = 0.5:
 	get: return _noise_threshold
@@ -56,11 +47,13 @@ var _allow_scale: bool = false
 		_allow_scale = value
 		_mark_dirty()
 
-var _snap_distance = 0
-@export var snap_distance = 0:
+## When > 0, instances are placed on the shape's surface instead of inside its
+## volume, pushed outward by this distance. 0 keeps volume placement.
+var _snap_distance: float = 0.0
+@export var snap_distance: float = 0.0:
 	get: return _snap_distance
 	set(value):
-		_snap_distance = value
+		_snap_distance = max(0.0, value)
 		_mark_dirty()
 
 @export_group("Collision Options")
@@ -85,38 +78,19 @@ var _max_placement_attempts: int = 100
 		_max_placement_attempts = clamp(value, 10, 1000)
 		_mark_dirty()
 
-@export var estimated_instances: int = 0
+## Samples a random point inside the spread area -- or on its surface when
+## snap_distance > 0. Returns null when the shape type is unsupported so the
+## caller can skip the attempt instead of stacking instances at the origin.
+func get_random_position_in_area() -> Variant:
+	var position = _sample_shape_volume()
+	if position == null:
+		return null
+	if _snap_distance > 0.0:
+		return _project_to_surface(position)
+	return position
 
-var rng: RandomNumberGenerator
-
-func _ready():
-	rng = RandomNumberGenerator.new()
-	_mark_dirty()
-
-func _process(_delta):
-	if not Engine.is_editor_hint(): return
-	if _dirty and not _generation_in_progress:
-		_dirty = false
-		call_deferred("spread_template")
-
-func _exit_tree():
-	if not Engine.is_editor_hint():
-		return
-	clear_children()
-
-func _mark_dirty():
-	_dirty = true
-
-func clear_children():
-	var children_to_remove = []
-	for child in get_children(true):
-		if child.has_meta(SPREADER_NODE_META):
-			children_to_remove.append(child)
-	for child in children_to_remove:
-		remove_child(child)
-		child.queue_free()
-
-func get_random_position_in_area() -> Vector3:
+## Pure per-shape volume sampling. Returns null for unsupported shapes.
+func _sample_shape_volume() -> Variant:
 	if spread_area_3d is SphereShape3D:
 		var radius = spread_area_3d.get_radius()
 		var u = rng.randf()
@@ -135,12 +109,14 @@ func get_random_position_in_area() -> Vector3:
 	if spread_area_3d is CapsuleShape3D:
 		var radius = spread_area_3d.get_radius()
 		var height = spread_area_3d.get_height() * 0.5
-		if rng.randf() < noise_threshold:
+		if rng.randf() < 0.5:
+			# Cylinder shaft of the capsule.
 			var angle = rng.randf() * TAU
 			var r = radius * sqrt(rng.randf())
 			return Vector3(r * cos(angle), rng.randf_range(-height, height), r * sin(angle))
 		else:
-			var hemisphere_y = height if rng.randf() < noise_threshold else -height
+			# Hemispherical caps, chosen uniformly.
+			var hemisphere_y = height if rng.randf() < 0.5 else -height
 			var u = rng.randf()
 			var v = rng.randf()
 			var theta = u * TAU
@@ -161,20 +137,30 @@ func get_random_position_in_area() -> Vector3:
 		var width = spread_area_3d.map_width
 		var depth = spread_area_3d.map_depth
 		if width <= 0 or depth <= 0 or spread_area_3d.map_data.size() == 0:
-			return Vector3.ZERO
-		var x = rng.randi_range(0, width - 1)
-		var z = rng.randi_range(0, depth - 1)
-		var index = x + z * width
-		if index < spread_area_3d.map_data.size():
-			return Vector3(x, spread_area_3d.map_data[index], z)
-		return Vector3.ZERO
+			return null
+		# Convert grid coordinates to world units with bilinear height filtering.
+		var x = rng.randf_range(0.0, float(width - 1))
+		var z = rng.randf_range(0.0, float(depth - 1))
+		var x0 = int(x)
+		var z0 = int(z)
+		var fx = x - x0
+		var fz = z - z0
+		var x1 = min(x0 + 1, width - 1)
+		var z1 = min(z0 + 1, depth - 1)
+		var h00: float = spread_area_3d.map_data[x0 + z0 * width]
+		var h10: float = spread_area_3d.map_data[x1 + z0 * width]
+		var h01: float = spread_area_3d.map_data[x0 + z1 * width]
+		var h11: float = spread_area_3d.map_data[x1 + z1 * width]
+		var top = lerpf(h00, h10, fx)
+		var bottom = lerpf(h01, h11, fx)
+		return Vector3(x, lerpf(top, bottom, fz), z)
 	if spread_area_3d is WorldBoundaryShape3D:
 		var bound = 100.0
 		return Vector3(rng.randf_range(-bound, bound), 0, rng.randf_range(-bound, bound))
 	if spread_area_3d is ConvexPolygonShape3D or spread_area_3d is ConcavePolygonShape3D:
 		var pts = spread_area_3d.points if spread_area_3d.has_method("get_points") else []
 		if pts.size() == 0:
-			return Vector3.ZERO
+			return null
 		var min_point = pts[0]
 		var max_point = pts[0]
 		for p in pts:
@@ -185,20 +171,14 @@ func get_random_position_in_area() -> Vector3:
 			rng.randf_range(min_point.y, max_point.y),
 			rng.randf_range(min_point.z, max_point.z)
 		)
-	push_warning("CSGSpreader3D: Shape type not supported")
-	return Vector3.ZERO
+	# Unsupported shape: signal the caller to skip rather than pile up at origin.
+	return null
 
-func spread_template():
-	if _generation_in_progress:
-		return
-	_generation_in_progress = true
+func _generate_instances():
 	if not spread_area_3d:
-		_generation_in_progress = false
 		return
-	clear_children()
-	var template_node = get_node_or_null(template_node_path)
-	if not template_node:
-		_generation_in_progress = false
+	var template_node = _get_template_node()
+	if template_node == null:
 		return
 
 	rng.seed = _seed
@@ -216,6 +196,8 @@ func spread_template():
 		var attempts = _max_placement_attempts if _avoid_overlaps else 1
 		for attempt in range(attempts):
 			var test_position = get_random_position_in_area()
+			if test_position == null:
+				continue
 			if not _avoid_overlaps:
 				final_position = test_position
 				position_found = true
@@ -231,29 +213,58 @@ func spread_template():
 				break
 		if not position_found:
 			continue
-		var instance = template_node.duplicate()
+		var instance = _make_instance(template_node, final_position)
 		if instance == null:
 			continue
-		instance.set_meta(SPREADER_NODE_META, true)
-		instance.transform.origin = final_position
 		placed_positions.append(final_position)
 		if _allow_rotation:
-			var rotation_y = rng.randf_range(0, TAU)
-			instance.rotate_y(rotation_y)
+			_apply_random_y_rotation(instance)
 		if _allow_scale:
-			var scale_factor = rng.randf_range(0.5, 2.0)
-			instance.scale *= scale_factor
-		add_child(instance)
+			_apply_random_scale(instance, 0.5, 2.0)
 		instances_created += 1
 	estimated_instances = instances_created
-	_generation_in_progress = false
 
-func bake_instances():
-	if get_child_count() == 0:
-		return
-	var stack = []
-	stack.append_array(get_children())
-	while stack.size() > 0:
-		var node = stack.pop_back()
-		node.set_owner(owner)
-		stack.append_array(node.get_children())
+## Backward-compatible alias for the old API used by tooling.
+func spread_template():
+	refresh()
+
+func get_instance_count() -> int:
+	return _max_count if spread_area_3d else 0
+
+## Projects a sampled interior point onto the shape's surface, pushed outward
+## by snap_distance along the direction from the shape center. This gives a
+## "scatter on the surface shell" effect without needing scene raycasting.
+func _project_to_surface(position: Vector3) -> Vector3:
+	if spread_area_3d is HeightMapShape3D:
+		# Heightmap already is a surface: keep the sampled height, push up.
+		return Vector3(position.x, position.y + _snap_distance, position.z)
+	if spread_area_3d is WorldBoundaryShape3D:
+		# Already planar; snapping is a no-op beyond a y-offset.
+		return Vector3(position.x, _snap_distance, position.z)
+	if spread_area_3d is ConvexPolygonShape3D or spread_area_3d is ConcavePolygonShape3D:
+		# Push the point to the farthest extent along the dominant axis of its
+		# offset from the shape's AABB center.
+		var pts = spread_area_3d.points if spread_area_3d.has_method("get_points") else []
+		if pts.is_empty():
+			return position
+		var min_point = pts[0]
+		var max_point = pts[0]
+		for p in pts:
+			min_point = min_point.min(p)
+			max_point = max_point.max(p)
+		var aabb := AABB(min_point, max_point - min_point)
+		var center_to_point := position - aabb.get_center()
+		var dominant := Vector3.ZERO
+		if absf(center_to_point.x) >= absf(center_to_point.y) and absf(center_to_point.x) >= absf(center_to_point.z):
+			dominant = Vector3(signf(center_to_point.x), 0, 0)
+		elif absf(center_to_point.y) >= absf(center_to_point.z):
+			dominant = Vector3(0, signf(center_to_point.y), 0)
+		else:
+			dominant = Vector3(0, 0, signf(center_to_point.z))
+		return position + dominant * _snap_distance
+	# Generic radial projection for sphere-like shapes (box/capsule/cylinder are
+	# approximated radially -- good enough for scatter shells).
+	var dir := position
+	if dir.length() < 0.001:
+		dir = Vector3.FORWARD
+	return dir.normalized() * (dir.length() + _snap_distance)

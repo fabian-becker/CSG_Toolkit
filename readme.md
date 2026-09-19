@@ -39,16 +39,21 @@ Distribute objects naturally within 3D shapes with smart placement:
 
 **Smart Features:**
 * **Collision Avoidance:** Prevent object overlap with configurable minimum distances
-* **Noise Threshold:** Control density and distribution patterns
+* **Density Threshold:** Control spawn probability with a single slider
+* **Surface Snapping:** Optional `snap_distance` pushes instances onto the shape's surface shell
 * **Advanced Random Distribution:** Mathematically correct uniform distribution
 * **Material Variations:** Random materials and scaling options
 
 ## Quick Start Guide
 
 1. **Enable the Plugin:** Project Settings > Plugins > CSG Toolkit ✓
-2. **Add Nodes:** Create Node > CSGRepeater3D / CSGSpreader3D / CSGModifier3D
+2. **Add Nodes:** Create Node > CSGRepeater3D / CSGSpreader3D
 3. **Set Template:** Assign a template node or scene to repeat/spread
 4. **Configure Pattern:** Choose pattern type and adjust parameters
+
+### Selecting a Repeater/Spreader shows the top toolbar with **Refresh** and **Bake**
+
+Bake copies the generated instances into the scene with full undo support.
 
 ### Installation Note
 After installing the plugin, reload your project and enable it in Project Settings > Plugins. 

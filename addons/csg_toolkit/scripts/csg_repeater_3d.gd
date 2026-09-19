@@ -1,5 +1,5 @@
 @tool
-class_name CSGRepeater3D extends CSGCombiner3D
+class_name CSGRepeater3D extends CsgGeneratorBase
 
 # NOTE: Registered as custom type in plugin (csg_toolkit.gd) inheriting CSGCombiner3D.
 # Ensure pattern resource scripts are loaded (Godot should handle via class_name, but we force references for safety):
@@ -7,29 +7,10 @@ const _REF_GRID = preload("res://addons/csg_toolkit/scripts/patterns/grid_patter
 const _REF_CIRC = preload("res://addons/csg_toolkit/scripts/patterns/circular_pattern.gd")
 const _REF_SPIRAL = preload("res://addons/csg_toolkit/scripts/patterns/spiral_pattern.gd")
 
-const REPEATER_NODE_META = "REPEATED_NODE_META"
-const MAX_INSTANCES = 20000
-
-var _dirty: bool = false
-var _template_node_path: NodePath
-@export var template_node_path: NodePath:
-	get: return _template_node_path
-	set(value):
-		_template_node_path = value
-		_mark_dirty()
-
-var _template_node_scene: PackedScene
-@export var template_node_scene: PackedScene:
-	get: return _template_node_scene
-	set(value):
-		_template_node_scene = value
-		_mark_dirty()
-
 ## repeat & spacing removed (migrated into pattern resources)
 
 @export_group("Pattern Options")
 # A single exported pattern resource (`pattern`) defines generation behavior.
-
 
 @export_group("Variation Options")
 # Rotation variation properties now managed via custom property list for collapsible enable group.
@@ -164,11 +145,6 @@ var _random_seed: int = 0
 		_random_seed = value
 		_mark_dirty()
 
-# Estimated instance count (read-only in inspector; updated internally)
-@export var estimated_instances: int = 0
-
-var rng: RandomNumberGenerator
-var _generation_in_progress := false
 var _pattern: CSGPattern
 @export var pattern: CSGPattern:
 	get: return _pattern
@@ -179,151 +155,76 @@ var _pattern: CSGPattern
 		if value != null and not (value is CSGPattern):
 			push_warning("Assigned pattern is not a CSGPattern-derived resource; ignoring.")
 			return
-		# Prevent assigning the abstract base directly (must use subclass)
-		if value != null and value.get_class() == "CSGPattern":
+		# Prevent assigning the abstract base directly (must use subclass).
+		# NOTE: get_class() returns the native class for scripted resources, so
+		# check the script's global class_name instead.
+		if value != null and value.get_script() != null and value.get_script().get_global_name() == "CSGPattern":
 			push_warning("Cannot assign base CSGPattern directly. Please use a concrete pattern (Grid, Circular, Spiral...).")
 			return
 		# Disconnect old
-		if _pattern and _pattern.is_connected("changed", Callable(self, "_on_pattern_changed")):
-			_pattern.disconnect("changed", Callable(self, "_on_pattern_changed"))
+		if _pattern and _pattern.changed.is_connected(_on_pattern_changed):
+			_pattern.changed.disconnect(_on_pattern_changed)
 		_pattern = value
-		if _pattern and not _pattern.is_connected("changed", Callable(self, "_on_pattern_changed")):
-			_pattern.connect("changed", Callable(self, "_on_pattern_changed"))
+		if _pattern and not _pattern.changed.is_connected(_on_pattern_changed):
+			_pattern.changed.connect(_on_pattern_changed)
 		_mark_dirty()
 
-func _ready():
-	rng = RandomNumberGenerator.new()
+
+func _setup_generator() -> void:
 	# Provide a default pattern if none assigned (through setter for signal wiring).
 	if pattern == null:
 		pattern = CSGGridPattern.new()
-	_mark_dirty()
 
 func _on_pattern_changed():
 	# Called when the assigned pattern resource's exported properties are edited in inspector.
 	_mark_dirty()
 
-func _process(_delta):
-	if not Engine.is_editor_hint(): return
-	if _dirty and not _generation_in_progress:
-		_dirty = false
-		call_deferred("repeat_template")
-
-func _exit_tree():
-	# Clean up any remaining repeated nodes
-	clear_children()
-
-func _mark_dirty():
-	_dirty = true
-
-func clear_children():
-	# Clear existing children except the template node
-	var children_to_remove = []
-	for child in get_children(true):
-		if child.has_meta(REPEATER_NODE_META):
-			children_to_remove.append(child)
-	# Remove children immediately for better performance
-	for child in children_to_remove:
-		remove_child(child)
-		child.queue_free()
-
-func repeat_template():
-	if _generation_in_progress:
+func _generate_instances():
+	var template_node = _get_template_node()
+	if template_node == null:
 		return
-	_generation_in_progress = true
-	clear_children()
-
-	var template_node = get_node_or_null(template_node_path)
-	var using_scene = false
-	# Determine template source
-	if not template_node:
-		if not template_node_scene or not template_node_scene.can_instantiate():
-			_generation_in_progress = false
-			return
-		template_node = template_node_scene.instantiate()
-		using_scene = true
-		add_child(template_node)
+	var using_scene := _pending_template_instance != null
 
 	# Use pattern estimation for cap check
 	var template_size := _get_template_size(template_node)
-	var ctx_cap := {"template_size": template_size, "rng": rng, "position_jitter": _position_jitter}
 	var estimate := 0
 	if pattern:
-		estimate = pattern.get_estimated_count(ctx_cap)
-	if estimate <= 1:
-		if using_scene:
-			remove_child(template_node)
-			template_node.queue_free()
-		_generation_in_progress = false
-		return
+		estimate = pattern.get_estimated_count({"template_size": template_size, "rng": rng, "position_jitter": _position_jitter})
 	if estimate > MAX_INSTANCES:
 		push_warning("CSGRepeater3D: Estimated count %s exceeds cap %s. Aborting generation." % [estimate, MAX_INSTANCES])
-		_generation_in_progress = false
+		if using_scene:
+			_release_template_instance()
 		return
 
 	rng.seed = _random_seed
-	# template_size already computed earlier (template_size variable)
-	var positions = _generate_positions(template_size)
-	estimated_instances = positions.size() - 1
+	var instance_positions = _instance_positions(template_node, template_size)
+	estimated_instances = instance_positions.size()
 
-	for i in range(positions.size()):
-		var position = positions[i]
-		if i == 0 and position.is_zero_approx():
-			continue
-		var instance = template_node.duplicate()
+	for position in instance_positions:
+		var instance = _make_instance(template_node, position)
 		if instance == null:
 			continue
-		instance.set_meta(REPEATER_NODE_META, true)
-		instance.transform.origin = position
 		_apply_variations(instance)
-		add_child(instance)
 
 	if using_scene:
-		remove_child(template_node)
-		template_node.queue_free()
-	_generation_in_progress = false
+		_release_template_instance()
 
-func _generate_positions(template_size: Vector3) -> Array:
-	var ctx: Dictionary = {"template_size": template_size, "rng": rng, "position_jitter": _position_jitter}
+## Filters raw pattern positions into instance placements. The template node
+## itself already occupies its own origin (e.g. a grid pattern's (0,0,0) entry),
+## so positions coinciding with the template's origin are not duplicated there.
+## Unlike the old first-index heuristic this works regardless of the order in
+## which a pattern emits its positions.
+func _instance_positions(template_node: Node, template_size: Vector3) -> Array:
+	var result: Array = []
 	if pattern == null:
-		return []
-	return pattern.generate(ctx)
-
-
-# -- Geometry-based spacing helpers -------------------------------------------------
-
-func _get_template_size(template_node: Node) -> Vector3:
-	if template_node == null or not (template_node is Node3D):
-		return Vector3.ONE
-	var aabb := _get_combined_aabb(template_node)
-	var size: Vector3 = aabb.size
-	if size.x <= 0.0001: size.x = 1.0
-	if size.y <= 0.0001: size.y = 1.0
-	if size.z <= 0.0001: size.z = 1.0
-	return size
-
-func _get_combined_aabb(node: Node) -> AABB:
-	var found := false
-	var combined := AABB()
-	if node is Node3D and node.has_method("get_aabb"):
-		var aabb = node.get_aabb()
-		combined = aabb
-		found = true
-	for child in node.get_children():
-		if child is Node3D:
-			var child_aabb = _get_combined_aabb(child)
-			if child_aabb.size != Vector3.ZERO:
-				if not found:
-					combined = child_aabb
-					found = true
-				else:
-					combined = combined.merge(child_aabb)
-	return combined if found else AABB(Vector3.ZERO, Vector3.ZERO)
-
-func _apply_material_recursive(node: Node, material: Material):
-	if node is CSGShape3D:
-		node.material_override = material
-	for child in node.get_children():
-		_apply_material_recursive(child, material)
+		return result
+	var template_origin: Vector3 = (template_node as Node3D).transform.origin if template_node is Node3D else Vector3.ZERO
+	var ctx: Dictionary = {"template_size": template_size, "rng": rng, "position_jitter": _position_jitter}
+	for position in pattern.generate(ctx):
+		if position == template_origin:
+			continue
+		result.append(position)
+	return result
 
 
 func _apply_variations(instance: Node3D):
@@ -367,11 +268,11 @@ func _apply_variations(instance: Node3D):
 			instance.scale *= scale_factor
 
 func regenerate():
-	_mark_dirty()
+	refresh()
 
 # -- Custom property list (Godot 4.5 group enable support) -------------------------
-func _get_property_list() -> Array:
-	var props: Array = []
+func _get_property_list() -> Array[Dictionary]:
+	var props: Array[Dictionary] = super._get_property_list()
 
 	# Keep default exported properties (engine already exposes them). Only inject
 	# the rotation variation cluster with group enable + subgroup organization.
@@ -460,15 +361,6 @@ func _prop_bool(name: String) -> Dictionary:
 		"usage": PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR
 	}
 
-func _prop_float_deg(name: String, value: float) -> Dictionary:
-	return {
-		"name": name,
-		"type": TYPE_FLOAT,
-		"hint": PROPERTY_HINT_RANGE,
-		"hint_string": "-360,360,0.1,degrees",
-		"usage": PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR
-	}
-
 func _prop_float_range(name: String, hint_str: String) -> Dictionary:
 	return {
 		"name": name,
@@ -478,22 +370,14 @@ func _prop_float_range(name: String, hint_str: String) -> Dictionary:
 		"usage": PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR
 	}
 
+
+## Instance count excluding any position that would land on the template origin.
 func get_instance_count() -> int:
 	if pattern == null:
 		return 0
 	var ctx := {"template_size": Vector3.ONE, "rng": rng, "position_jitter": _position_jitter}
-	return max(0, pattern.get_estimated_count(ctx) - 1)
-
-func apply_template():
-	if get_child_count() == 0:
-		return
-	var stack = []
-	stack.append_array(get_children())
-	while stack.size() > 0:
-		var node = stack.pop_back()
-		node.set_owner(owner)
-		stack.append_array(node.get_children())
-
-# Alias for clarity in UI
-func bake_instances():
-	apply_template()
+	var count := 0
+	for position in pattern.generate(ctx):
+		if not position.is_zero_approx():
+			count += 1
+	return count

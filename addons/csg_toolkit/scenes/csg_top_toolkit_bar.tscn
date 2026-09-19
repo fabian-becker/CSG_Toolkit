@@ -13,4 +13,17 @@ layout_mode = 2
 text = "Refresh"
 flat = true
 
+[node name="Bake" type="Button" parent="."]
+layout_mode = 2
+text = "Bake"
+flat = true
+
+[node name="Freeze" type="Button" parent="."]
+layout_mode = 2
+text = "Freeze"
+flat = true
+toggle_mode = true
+
 [connection signal="pressed" from="Refresh" to="." method="_on_refresh_pressed"]
+[connection signal="pressed" from="Bake" to="." method="_on_bake_pressed"]
+[connection signal="pressed" from="Freeze" to="." method="_on_freeze_pressed"]

@@ -1,21 +1,18 @@
 @tool
 class_name CsgToolkit extends EditorPlugin
-@onready var config: CsgTkConfig:
-	get:
-		return get_tree().root.get_node_or_null(AUTOLOAD_NAME) as CsgTkConfig
 
 var sidebar: CSGSideToolkitBar
 var topbar: CSGTopToolkitBar
 var shortcut_manager: CsgShortcutManager
 
-const AUTOLOAD_NAME = "CsgToolkitAutoload"
-static var csg_plugin_path
+## Shared editor undo/redo manager used by creation + baking. Static because
+## tool scripts outside the plugin tree (generators, sidebar) need access.
 static var undo_manager: EditorUndoRedoManager
 
+
 func _enter_tree():
-	# Config
-	add_autoload_singleton(AUTOLOAD_NAME, "res://addons/csg_toolkit/scripts/csg_toolkit_config.gd")
-	csg_plugin_path = get_path()
+	# Warm up the plugin-owned config singleton (no autoload involved).
+	CsgTkConfig.instance()
 	undo_manager = get_undo_redo()
 	
 	# Nodes
@@ -43,8 +40,9 @@ func _exit_tree():
 	remove_custom_type("CSGRepeater3D")
 	remove_custom_type("CSGSpreader3D")
 	undo_manager = null
-	
-	remove_autoload_singleton(AUTOLOAD_NAME)
+
+	# Deliberately no remove_autoload_singleton: the config is a plugin-owned
+	# Resource singleton now, so project.godot is never touched.
 	
 	remove_control_from_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_SIDE_LEFT, sidebar)
 	sidebar.free()
