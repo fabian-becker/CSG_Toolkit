@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  gut-tests:
+    name: Headless GUT tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: false
+
+      - name: Verify Godot version
+        run: godot --version
+
+      - name: Install GUT
+        run: |
+          git clone --depth 1 --branch v9.7.1 https://github.com/bitwes/Gut.git _gut_tmp
+          mkdir -p addons/gut
+          cp -r _gut_tmp/addons/gut/* addons/gut/
+          rm -rf _gut_tmp
+
+      - name: Run GUT tests
+        run: |
+          godot --headless --path . -s addons/gut/gut_cmdln.gd -gconfig=res://.gutconfig.json -gexit
