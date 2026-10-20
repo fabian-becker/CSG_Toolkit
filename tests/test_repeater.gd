@@ -31,7 +31,7 @@ func test_repeater_generates_instances_from_packed_scene_template():
 	for child in repeater.get_children(true):
 		if child.has_meta(Repeater.GENERATOR_NODE_META):
 			generated_count += 1
-			assert_true(child.transform.origin.is_equal_approx(Vector3.ONE),
+			assert_true(child.transform.origin.is_equal_approx(Vector3.RIGHT),
 				"single generated instance sits at the spacing offset")
 
 	assert_eq(generated_count, 1)
