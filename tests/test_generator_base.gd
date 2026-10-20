@@ -15,7 +15,9 @@ func test_unique_bake_container_name_avoids_collisions():
 	var next_name: String = generator.call("_unique_bake_container_name", root)
 	assert_eq(next_name, "Baked_Gen_2", "name collision should append a counter")
 
-	root.queue_free()
+	autofree(root)
+	autofree(generator)
+	autofree(existing)
 
 
 func test_template_size_measures_visual_aabb():
@@ -28,8 +30,9 @@ func test_template_size_measures_visual_aabb():
 	var size: Vector3 = generator.call("_get_template_size", mesh_instance)
 	assert_true(size.is_equal_approx(Vector3(2, 3, 4)), "template size equals box mesh size")
 
-	generator.queue_free()
-	mesh_instance.queue_free()
+	autofree(generator)
+	autofree(mesh_instance)
+	box = null
 
 
 func test_make_instance_tags_meta_and_position():
@@ -42,9 +45,9 @@ func test_make_instance_tags_meta_and_position():
 	assert_true(instance.visible, "generated instance is visible even if template is hidden")
 	assert_true(instance.transform.origin.is_equal_approx(Vector3(1, 2, 3)))
 
-	generator.queue_free()
-	template.queue_free()
-	instance.queue_free()
+	autofree(generator)
+	autofree(template)
+	autofree(instance)
 
 
 func test_is_instance_copy_reads_meta():
@@ -54,4 +57,4 @@ func test_is_instance_copy_reads_meta():
 	generator.set_meta(GeneratorBase.BAKED_NODE_META, true)
 	assert_true(generator.call("_is_instance_copy"), "baked-meta marks node as copy")
 
-	generator.queue_free()
+	autofree(generator)

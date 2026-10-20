@@ -36,9 +36,8 @@ func test_repeater_generates_instances_from_packed_scene_template():
 
 	assert_eq(generated_count, 1)
 
-	repeater.queue_free()
-	template.queue_free()
-
+	autofree(repeater)
+	autofree(template)
 
 func test_repeater_instance_count_excludes_origin():
 	var repeater := Repeater.new()
@@ -49,4 +48,4 @@ func test_repeater_instance_count_excludes_origin():
 
 	assert_eq(repeater.get_instance_count(), 1, "only the non-origin position counts")
 
-	repeater.queue_free()
+	autofree(repeater)
