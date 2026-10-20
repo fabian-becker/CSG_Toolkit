@@ -20,6 +20,7 @@ func test_repeater_generates_instances_from_packed_scene_template():
 	repeater.pattern.use_template_size = false
 	repeater.pattern.spacing = Vector3.ONE
 	repeater.random_seed = 123
+	repeater.rng = RandomNumberGenerator.new()
 
 	# Bypass the editor _process loop and run generation directly.
 	repeater.call("_run_generation")
