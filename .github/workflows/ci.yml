@@ -31,6 +31,9 @@ jobs:
           cp -r _gut_tmp/addons/gut/* addons/gut/
           rm -rf _gut_tmp
 
+      - name: Import Godot project
+        run: godot --headless --import
+
       - name: Run GUT tests
         run: |
           godot --headless --path . -s addons/gut/gut_cmdln.gd -gconfig=res://.gutconfig.json -gexit
