@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main, master]
@@ -34,6 +37,20 @@ jobs:
       - name: Import Godot project
         run: godot --headless --import
 
+      - name: Verify test files exist
+        run: |
+          if ! compgen -G 'tests/*.gd' > /dev/null; then
+            echo "Error: no test files found in tests/"
+            exit 1
+          fi
+
       - name: Run GUT tests
         run: |
-          godot --headless --path . -s addons/gut/gut_cmdln.gd -gconfig=res://.gutconfig.json -gexit
+          set -o pipefail
+          godot --headless --path . -s addons/gut/gut_cmdln.gd -gconfig=res://.gutconfig.json -gexit | tee gut.log
+          tests_run=$(awk '$1 == "Tests" {print $2; exit}' gut.log)
+          if [ -z "$tests_run" ] || [ "$tests_run" = "none" ] || [ "$tests_run" -eq 0 ]; then
+            echo "Error: GUT reported no tests executed (Tests=${tests_run:-empty})"
+            exit 1
+          fi
+          echo "GUT executed $tests_run test(s)"
